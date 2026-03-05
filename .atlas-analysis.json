@@ -1,0 +1,104 @@
+{
+  "projectType": "saas",
+  "projectName": "DentControl",
+  "projectDescription": "A comprehensive dental clinic management system for multi-tenant practices with patient records, appointments, and treatment tracking.",
+  "theme": "almond",
+  "primaryColor": "#ef370f",
+  "lightColor": "#ef370f",
+  "darkColor": "#f79d72",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/clinic-management",
+              "features/patient-management",
+              "features/appointments",
+              "features/treatments",
+              "features/clinical-records"
+            ]
+          },
+          {
+            "group": "User Roles",
+            "pages": [
+              "roles/super-admin",
+              "roles/dentist",
+              "roles/assistant",
+              "roles/patient-access"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/user-management",
+              "guides/database-setup",
+              "guides/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/clinica",
+              "api/models/usuario",
+              "api/models/paciente",
+              "api/models/cita",
+              "api/models/tratamiento"
+            ]
+          },
+          {
+            "group": "Controllers",
+            "pages": [
+              "api/controllers/auth",
+              "api/controllers/admin",
+              "api/controllers/clinica",
+              "api/controllers/usuario"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-clinic tenant management",
+    "Patient records and clinical files",
+    "Appointment scheduling system",
+    "Treatment and service cataloging",
+    "Role-based access control (Admin, Dentist, Assistant)",
+    "Clinical evolution notes",
+    "Mobile patient access",
+    "User and clinic administration"
+  ],
+  "publicApiSurface": [
+    "Clinica::create()",
+    "Clinica::update()",
+    "Clinica::toggleStatus()",
+    "Usuario::create()",
+    "Usuario::update()",
+    "Paciente::create()",
+    "Cita::create()",
+    "Tratamiento::create()",
+    "AuthController::login()",
+    "AuthController::logout()",
+    "ClinicaController::index()",
+    "ClinicaController::store()",
+    "UsuarioController::index()",
+    "UsuarioController::store()"
+  ]
+}
