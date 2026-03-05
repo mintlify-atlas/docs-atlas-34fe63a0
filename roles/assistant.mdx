@@ -1,0 +1,280 @@
+---
+title: Assistant Role
+description: Receptionist and scheduling role with limited access to appointment management
+---
+
+## Overview
+
+The **Assistant** (asistente) role is designed for receptionists and administrative staff who handle appointment scheduling, patient check-in, and agenda management. Assistants have restricted access focused on scheduling and reception tasks within their assigned clinic.
+
+<Info>
+  Assistants are the front-line staff who manage daily operations, patient flow, and appointment scheduling.
+</Info>
+
+## Key Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Clinic-Specific Access" icon="building">
+    Access limited to their assigned clinic's data only
+  </Card>
+  <Card title="Appointment Focus" icon="calendar">
+    Primary role is managing appointments and daily agenda
+  </Card>
+  <Card title="No Professional License" icon="id-badge">
+    Does not require cedula_profesional (field is optional)
+  </Card>
+  <Card title="Limited Permissions" icon="user-lock">
+    Cannot access clinical records or treatment details
+  </Card>
+</CardGroup>
+
+## Accessible Routes
+
+Assistant routes are protected by the `can:asistente-only` middleware, which verifies the user's role is `asistente`.
+
+### Dashboard
+```
+GET /asistente/dashboard
+```
+View reception-focused statistics including:
+- Today's appointments (`citasHoy`)
+- Total patients in the clinic (`totalPacientes`)
+- Active treatments count (`tratamientosActivos`)
+- System alerts and notifications
+
+Implemented in: `app/Http/Controllers/Clinica/DashboardController.php:12`
+
+<Note>
+  The assistant dashboard uses the same controller as the dentist dashboard but renders a different view (`asistente.dashboard` instead of `dentista.dashboard`) with reception-focused interface.
+</Note>
+
+**Source:** `DashboardController.php:24`
+
+### Agenda Management
+
+```
+GET /agenda
+```
+**Controller:** `AgendaController@index`
+
+**Purpose:** View and manage the clinic's appointment schedule
+
+**Typical Functions:**
+- View daily/weekly/monthly calendar
+- Schedule new appointments
+- Reschedule existing appointments
+- Mark patient arrivals (check-in)
+- View appointment details
+
+**Data Scope:** Filtered by `id_clinica` to show only the clinic's agenda
+
+**Source:** `routes/web.php:45`
+
+## Permission Boundaries
+
+<Warning>
+  **Cannot Access:**
+  - Patient clinical records or medical histories
+  - Treatment plans or evolution notes
+  - Patient-specific medical data beyond basic demographics
+  - User management functions
+  - Clinic configuration or settings
+  - Super Admin routes (`/admin/*`)
+  - Dentist-only routes (`/dentista/*`, `/pacientes/*`)
+</Warning>
+
+<Info>
+  **Can Access:**
+  - Appointment scheduling and calendar
+  - Patient contact information (for scheduling)
+  - Daily appointment list
+  - Patient check-in workflow
+  - Basic patient demographics (name, phone, address)
+</Info>
+
+## Typical Workflows
+
+### Patient Check-In Process
+
+<Steps>
+  <Step title="View Today's Appointments">
+    Access the agenda to see all scheduled appointments for the day
+  </Step>
+  <Step title="Patient Arrival">
+    Mark the patient as arrived when they check in at reception
+  </Step>
+  <Step title="Notify Dentist">
+    System notifies the dentist that the patient is ready
+  </Step>
+  <Step title="Update Status">
+    Track appointment status (waiting, in progress, completed)
+  </Step>
+</Steps>
+
+### Appointment Scheduling
+
+<Steps>
+  <Step title="Check Availability">
+    View the dentist's available time slots in the agenda
+  </Step>
+  <Step title="Select Patient">
+    Choose existing patient or create basic patient record
+  </Step>
+  <Step title="Book Appointment">
+    Schedule appointment with date, time, and appointment type
+  </Step>
+  <Step title="Confirm">
+    Provide confirmation to patient (number, date, time)
+  </Step>
+</Steps>
+
+## Authentication & Authorization
+
+### Gate Definition
+
+The `asistente-only` gate is defined in `AppServiceProvider.php:34`:
+
+```php
+Gate::define('asistente-only', function ($user) {
+    return $user->rol === 'asistente';
+});
+```
+
+### Login Redirection
+
+After successful authentication, Assistants are redirected to:
+```
+/asistente/dashboard
+```
+
+Implemented in: `AuthController.php:70`
+
+### Session Validation
+
+Assistants cannot log in if:
+1. Their user status is not `'activo'` (checked at `AuthController.php:33`)
+2. Their clinic status is `'baja'` (checked at `AuthController.php:41`)
+
+## Database Schema
+
+Assistant users are stored in the `usuario` table:
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| `id_usuario` | Primary key | ✓ |
+| `id_clinica` | Foreign key to clinic | ✓ |
+| `nombre` | First name (min 3 chars) | ✓ |
+| `apellido_paterno` | Paternal surname (min 3 chars) | ✓ |
+| `apellido_materno` | Maternal surname | Optional |
+| `cedula_profesional` | Professional license | **Not Required** |
+| `nom_usuario` | Username (4-20 alphanumeric) | ✓ |
+| `password` | Hashed password | ✓ |
+| `rol` | Must be `'asistente'` | ✓ |
+| `estatus` | `'activo'` or `'baja'` | ✓ |
+
+**Source:** `app/Models/Usuario.php:21`
+
+<Note>
+  Unlike dentists, assistants do **not** require a `cedula_profesional` since they are administrative staff, not medical professionals.
+</Note>
+
+## Creating Assistant Accounts
+
+Assistant accounts can only be created by Super Admins via:
+
+```
+POST /usuarios
+```
+
+**Required Fields:**
+- `id_clinica` - Must be an active clinic
+- `nombre` - Min 3 chars, letters only
+- `apellido_paterno` - Min 3 chars, letters only
+- `nom_usuario` - 4-20 alphanumeric, unique
+- `password` - Min 8 chars, mixed case, numbers
+- `rol` - Set to `'asistente'`
+
+**Optional Fields:**
+- `apellido_materno` - Maternal surname
+- `cedula_profesional` - Leave empty/null for assistants
+
+**Validation Rule:** The `cedula_profesional` is only required when `rol` is `'dentista'`
+
+**Source:** `app/Http/Controllers/Admin/UsuarioController.php:61`
+
+## Account Management
+
+### Status Toggle
+
+Super Admins can suspend or reactivate assistant accounts:
+
+```
+PATCH /usuarios/{id}/toggle
+```
+
+This switches the `estatus` between `'activo'` and `'baja'`. When suspended, the assistant cannot log in.
+
+**Source:** `app/Http/Controllers/Admin/UsuarioController.php:91`
+
+### Profile Updates
+
+Assistants cannot update their own profiles. Updates must be performed by Super Admins via:
+
+```
+PUT /usuarios/{id}
+```
+
+## Security Considerations
+
+<Card title="Data Privacy" icon="shield-halved">
+  Assistants should only have access to the minimum patient information necessary for scheduling:
+  - Name and contact details
+  - Appointment history
+  - Basic demographics
+  
+  They should **not** see:
+  - Medical histories
+  - Treatment details
+  - Clinical notes
+  - X-rays or medical documents
+</Card>
+
+<Card title="Password Security" icon="key">
+  Passwords are automatically hashed using Laravel's built-in hashing (defined in Usuario model as `'password' => 'hashed'`).
+</Card>
+
+## Best Practices
+
+1. **Minimal Access Principle**: Only grant assistants access to scheduling and reception functions
+2. **Training**: Ensure assistants understand they should not access clinical data
+3. **Appointment Management**: Focus training on efficient scheduling and patient flow
+4. **Communication**: Establish clear protocols for communicating with dentists about patient arrivals
+5. **Data Entry**: Train on accurate data entry for appointments to avoid scheduling conflicts
+
+## Comparison with Other Roles
+
+| Feature | Super Admin | Dentist | Assistant |
+|---------|-------------|---------|----------|
+| **Scope** | All clinics | Own clinic | Own clinic |
+| **Patient Records** | View all | Full access | Contact info only |
+| **Appointments** | View stats | Full access | Scheduling focus |
+| **Clinical Data** | View stats | Full access | No access |
+| **User Management** | Full control | No access | No access |
+| **License Required** | No | Yes | No |
+
+## Future Capabilities
+
+Based on the system architecture, assistants may eventually have access to:
+
+- **Patient Check-In System**: Mobile or tablet-based check-in kiosks
+- **SMS Notifications**: Send appointment reminders to patients
+- **Waitlist Management**: Handle cancellations and fill empty slots
+- **Reports**: Generate daily/weekly appointment reports
+- **Billing Support**: Basic payment collection (if integrated)
+
+## Related Documentation
+
+- [Super Admin Role](/roles/super-admin) - Platform-level management
+- [Dentist Role](/roles/dentist) - Clinical management
+- [Patient Access](/roles/patient-access) - Patient portal capabilities
+- [Appointment System](/features/appointments) - Detailed scheduling operations

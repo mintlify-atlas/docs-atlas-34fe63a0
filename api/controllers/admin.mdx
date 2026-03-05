@@ -1,0 +1,164 @@
+---
+title: "AdminController"
+description: "Superadmin dashboard with system-wide statistics and clinic overview"
+---
+
+## Overview
+
+The `AdminController` handles the superadmin dashboard view for the DentControl SaaS platform. It provides system-wide statistics including active clinics count, active users count, total patients, and displays the most recently registered clinics.
+
+**Location:** `app/Http/Controllers/Admin/AdminController.php`
+
+**Namespace:** `App\Http\Controllers\Admin`
+
+---
+
+## Methods
+
+### index()
+
+Displays the superadmin dashboard with aggregated statistics from the entire platform.
+
+**Route:** `GET /admin/dashboard`
+
+**Route Name:** `admin.dashboard`
+
+**Middleware:** 
+- `auth` - User must be authenticated
+- `can:admin-only` - User must have superadmin role
+
+**Response:**
+
+Returns the `admin.dashboard` Blade view with the following data:
+
+<ResponseField name="totalClinicasActivas" type="integer">
+  Count of clinics with `estatus = 'activo'`
+</ResponseField>
+
+<ResponseField name="totalUsuariosActivos" type="integer">
+  Count of users with `estatus = 'activo'`
+</ResponseField>
+
+<ResponseField name="totalPacientes" type="integer">
+  Total count of all patients in the system
+</ResponseField>
+
+<ResponseField name="ultimasClinicas" type="Collection">
+  Collection of the 5 most recently created clinics (ordered by `created_at DESC`)
+</ResponseField>
+
+**Example:**
+```php
+public function index()
+{
+    // Get real counts from database
+    $totalClinicasActivas = Clinica::where('estatus', 'activo')->count();
+    $totalUsuariosActivos = Usuario::where('estatus', 'activo')->count();
+    $totalPacientes = Paciente::count();
+    
+    // Fetch the latest 5 registered clinics for a table
+    $ultimasClinicas = Clinica::orderBy('created_at', 'desc')->take(5)->get();
+
+    return view('admin.dashboard', compact(
+        'totalClinicasActivas', 
+        'totalUsuariosActivos', 
+        'totalPacientes', 
+        'ultimasClinicas'
+    ));
+}
+```
+
+**Database Queries:**
+
+1. Active clinics count:
+   ```sql
+   SELECT COUNT(*) FROM clinica WHERE estatus = 'activo'
+   ```
+
+2. Active users count:
+   ```sql
+   SELECT COUNT(*) FROM usuario WHERE estatus = 'activo'
+   ```
+
+3. Total patients:
+   ```sql
+   SELECT COUNT(*) FROM paciente
+   ```
+
+4. Recent clinics:
+   ```sql
+   SELECT * FROM clinica ORDER BY created_at DESC LIMIT 5
+   ```
+
+**View Data Structure:**
+
+The dashboard view receives these variables for displaying statistics cards and recent clinics table:
+
+```php
+[
+    'totalClinicasActivas' => 15,  // Example: 15 active clinics
+    'totalUsuariosActivos' => 42,  // Example: 42 active users
+    'totalPacientes' => 238,       // Example: 238 total patients
+    'ultimasClinicas' => [         // Collection of Clinica models
+        [
+            'id_clinica' => 5,
+            'nombre' => 'Clínica Dental Sonrisa',
+            'rfc' => 'CDS210101ABC',
+            'telefono' => '5512345678',
+            'ciudad' => 'Ciudad de México',
+            'estado' => 'CDMX',
+            'estatus' => 'activo',
+            'created_at' => '2026-03-01 10:30:00',
+            // ... other fields
+        ],
+        // ... 4 more clinics
+    ]
+]
+```
+
+---
+
+## Access Control
+
+**Authorization:**
+- Only users with `rol = 'superadmin'` can access this controller
+- Protected by the `can:admin-only` middleware gate
+- Unauthorized access attempts are redirected
+
+**User Requirements:**
+- Must be authenticated (`auth` middleware)
+- Must have `superadmin` role
+- Account status must be `activo`
+
+---
+
+## Related Models
+
+**Dependencies:**
+- `App\Models\Clinica` - For clinic statistics and listings
+- `App\Models\Usuario` - For user statistics
+- `App\Models\Paciente` - For patient count
+
+**Model Relationships:**
+- Queries are direct counts and collections (no explicit relationships used in this controller)
+
+---
+
+## Summary
+
+The `AdminController` provides **1 method** for the superadmin dashboard:
+
+1. **index()** - Display system-wide statistics and recent clinic registrations
+
+**Key Features:**
+- Real-time statistics from database
+- Active-only counts for clinics and users
+- Recent clinic overview (last 5 registrations)
+- Role-based access control (superadmin only)
+- System health monitoring at a glance
+
+**Dashboard Metrics:**
+- Active clinics count
+- Active users count
+- Total patients across all clinics
+- Recent clinic registrations table

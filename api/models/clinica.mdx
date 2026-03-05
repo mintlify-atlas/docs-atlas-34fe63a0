@@ -1,0 +1,170 @@
+---
+title: "Clinica Model"
+description: "Clinic management model for multi-tenant dental clinic operations"
+---
+
+## Overview
+
+The `Clinica` model represents dental clinic entities in the DentControl system. It serves as the primary tenant model for the multi-tenant SaaS architecture, containing clinic information, location details, and branding configuration.
+
+## Table Schema
+
+<ParamField path="table" type="string" default="clinica">
+  Database table name
+</ParamField>
+
+<ParamField path="primaryKey" type="integer" default="id_clinica">
+  Primary key column (auto-incrementing)
+</ParamField>
+
+<ParamField path="timestamps" type="boolean" default="true">
+  Includes `created_at` and `updated_at` columns
+</ParamField>
+
+## Fields
+
+### Basic Information
+
+<ParamField path="nombre" type="string" required>
+  Clinic name
+</ParamField>
+
+<ParamField path="rfc" type="string">
+  Tax identification number (RFC - Registro Federal de Contribuyentes). Unique and nullable.
+</ParamField>
+
+### Address Fields
+
+<ParamField path="calle" type="string">
+  Street name
+</ParamField>
+
+<ParamField path="numero_ext" type="string">
+  External street number
+</ParamField>
+
+<ParamField path="numero_int" type="string">
+  Internal/apartment number
+</ParamField>
+
+<ParamField path="colonia" type="string">
+  Neighborhood/colony
+</ParamField>
+
+<ParamField path="ciudad" type="string">
+  City
+</ParamField>
+
+<ParamField path="estado" type="string">
+  State/province
+</ParamField>
+
+<ParamField path="codigo_postal" type="string">
+  Postal/ZIP code
+</ParamField>
+
+### Contact & Branding
+
+<ParamField path="telefono" type="string">
+  Primary phone number
+</ParamField>
+
+<ParamField path="logo_ruta" type="string">
+  File path or URL to clinic logo
+</ParamField>
+
+### Status
+
+<ParamField path="estatus" type="enum" default="activo">
+  Clinic status: `activo` or `baja`
+</ParamField>
+
+## Relationships
+
+### usuarios
+
+**Type:** `hasMany`
+
+A clinic has many users (dentists, assistants, admins).
+
+```php
+$clinica->usuarios; // Collection of Usuario models
+```
+
+**Foreign Key:** `id_clinica` on `usuario` table
+
+### pacientes
+
+**Type:** `hasMany`
+
+A clinic has many patients.
+
+```php
+$clinica->pacientes; // Collection of Paciente models
+```
+
+**Foreign Key:** `id_clinica` on `paciente` table
+
+## Example Usage
+
+### Creating a New Clinic
+
+```php
+use App\Models\Clinica;
+
+$clinica = Clinica::create([
+    'nombre' => 'Clínica Dental Sonrisa',
+    'rfc' => 'CDS010101ABC',
+    'calle' => 'Av. Reforma',
+    'numero_ext' => '123',
+    'colonia' => 'Centro',
+    'ciudad' => 'Ciudad de México',
+    'estado' => 'CDMX',
+    'codigo_postal' => '06000',
+    'telefono' => '5555551234',
+    'estatus' => 'activo'
+]);
+```
+
+### Retrieving Clinic with Relationships
+
+```php
+// Get clinic with all users
+$clinica = Clinica::with('usuarios')->find($id);
+
+// Get clinic with active patients
+$clinica = Clinica::with(['pacientes' => function ($query) {
+    $query->where('estatus', 'activo');
+}])->find($id);
+```
+
+### Updating Clinic Information
+
+```php
+$clinica = Clinica::find($id);
+$clinica->update([
+    'telefono' => '5555559999',
+    'logo_ruta' => 'storage/logos/clinica-1.png'
+]);
+```
+
+## Model Definition
+
+Location: `app/Models/Clinica.php`
+
+```php
+protected $fillable = [
+    'nombre',
+    'rfc',
+    'calle',
+    'numero_ext',
+    'numero_int',
+    'colonia',
+    'ciudad',
+    'estado',
+    'codigo_postal',
+    'telefono',
+    'logo_ruta',
+    'estatus'
+];
+```

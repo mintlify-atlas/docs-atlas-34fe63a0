@@ -1,80 +1,258 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get DentControl up and running in minutes
 ---
 
-## Get started in three steps
+## Quick Setup
 
-Get your documentation site running locally and make your first customization.
+This guide will help you get DentControl running locally in just a few minutes.
 
-### Step 1: Set up your local environment
+<Warning>
+**Prerequisites**: Make sure you have PHP 8.2+, Composer, and Node.js installed before starting.
+</Warning>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the DentControl repository to your local machine:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    git clone <repository-url>
+    cd dentcontrol
+    ```
+  </Step>
+
+  <Step title="Run Automated Setup">
+    DentControl includes a convenient setup script that handles installation:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```bash
+    composer setup
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    This single command will:
+    - Install PHP dependencies via Composer
+    - Copy `.env.example` to `.env`
+    - Generate application key
+    - Run database migrations
+    - Install Node.js dependencies
+    - Build frontend assets
+    
+    <Info>
+    The setup script uses SQLite by default, so no additional database configuration is needed!
+    </Info>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Start the Development Server">
+    Launch all development services with one command:
+    
+    ```bash
+    composer dev
+    ```
+    
+    This starts:
+    - **Laravel server** (http://localhost:8000)
+    - **Queue worker** for background jobs
+    - **Pail logs** for real-time log monitoring
+    - **Vite dev server** for hot module replacement
+    
+    <Note>
+    All services run concurrently with color-coded output for easy monitoring.
+    </Note>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Access the Application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:8000
+    ```
+    
+    You'll see the login screen. The default super admin credentials need to be created through database seeding or manual registration.
+  </Step>
 
-### Step 3: Go live
+  <Step title="Create Your First Super Admin">
+    Since this is a fresh installation, you'll need to create the first super admin user. You can do this by:
+    
+    **Option 1: Using Tinker**
+    ```bash
+    php artisan tinker
+    ```
+    
+    Then create a super admin user:
+    ```php
+    App\Models\Usuario::create([
+        'nombre' => 'Admin',
+        'apellido_paterno' => 'System',
+        'email' => 'admin@dentcontrol.com',
+        'password' => bcrypt('password'),
+        'rol' => 'super_admin',
+        'estatus' => 1
+    ]);
+    ```
+    
+    **Option 2: Create a Database Seeder**
+    
+    For development, you can create a seeder to automate this step.
+    
+    <Warning>
+    Remember to change the default password in production!
+    </Warning>
+  </Step>
+</Steps>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Environment Configuration
 
-## Next steps
+The default `.env` file comes pre-configured for local development:
 
-Now that you have your docs running, explore these key features:
+```bash .env
+APP_NAME=DentControl
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost:8000
 
-<CardGroup cols={2}>
+# SQLite (default - no setup required)
+DB_CONNECTION=sqlite
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+# Queue system uses database
+QUEUE_CONNECTION=database
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+# Session stored in database for multi-tenant support
+SESSION_DRIVER=database
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+# Mail logs to file in development
+MAIL_MAILER=log
+```
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+<Info>
+For production deployments, you'll want to configure a proper database (MySQL/PostgreSQL) and mail service. See the [Installation Guide](/installation) for detailed configuration options.
+</Info>
 
-</CardGroup>
+## Verify Installation
+
+Confirm everything is working:
+
+<CodeGroup>
+```bash Check Database
+# Verify migrations ran successfully
+php artisan migrate:status
+```
+
+```bash Run Tests
+# Run the test suite
+composer test
+```
+
+```bash View Routes
+# See all available routes
+php artisan route:list
+```
+</CodeGroup>
+
+## User Roles Overview
+
+Once logged in, DentControl provides different dashboards based on user roles:
+
+### Super Admin
+- Access at `/admin/dashboard`
+- Manage all clinics via `/clinicas`
+- Manage all users via `/usuarios`
+- Full system control
+
+### Dentista (Dentist)
+- Access at `/dentista/dashboard`
+- Manage patients via `/pacientes`
+- View and manage clinic operations
+- Create and track treatments
+
+### Asistente (Assistant)
+- Access at `/asistente/dashboard`
+- Manage appointments via `/agenda`
+- Handle patient reception
+- Schedule management
+
+## Development Workflow
+
+When developing with DentControl:
+
+1. **Run `composer dev`** - Starts all services with live reload
+2. **Make changes** - Edit PHP, Blade, or CSS/JS files
+3. **See updates** - Changes reflect automatically:
+   - Frontend assets: Hot reload via Vite
+   - Backend code: Refresh browser after changes
+4. **Check logs** - Monitor the Pail output for errors and debugging
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+The `composer dev` command uses `concurrently` to run multiple processes. Press `Ctrl+C` to stop all services at once.
 </Note>
+
+## Common Tasks
+
+### Adding a New Clinic
+
+1. Log in as super admin
+2. Navigate to `/clinicas`
+3. Click "Create Clinic"
+4. Fill in clinic details (name, RFC, address, contact)
+5. Upload clinic logo (optional)
+6. Save and activate
+
+### Creating Clinic Users
+
+1. Navigate to `/usuarios`
+2. Click "Create User"
+3. Select clinic and assign role (Dentista/Asistente)
+4. Provide user details and credentials
+5. Activate user account
+
+### Managing Patients
+
+1. Log in as Dentista
+2. Navigate to `/pacientes`
+3. Add patient with complete information
+4. Patient is automatically associated with your clinic
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server won't start">
+    Make sure port 8000 is not in use:
+    ```bash
+    lsof -ti:8000 | xargs kill -9
+    ```
+    Then restart with `composer dev`
+  </Accordion>
+
+  <Accordion title="Database errors">
+    The database file should be at `database/database.sqlite`. If missing:
+    ```bash
+    touch database/database.sqlite
+    php artisan migrate
+    ```
+  </Accordion>
+
+  <Accordion title="Assets not loading">
+    Rebuild frontend assets:
+    ```bash
+    npm run build
+    ```
+  </Accordion>
+
+  <Accordion title="Permission errors">
+    Ensure storage and cache directories are writable:
+    ```bash
+    chmod -R 775 storage bootstrap/cache
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have DentControl running:
+
+- Read the [Installation Guide](/installation) for production deployment
+- Explore the API documentation for custom integrations
+- Configure email settings for notifications
+- Set up automated backups
+
+<Card title="Need Help?" icon="question">
+  For detailed configuration and troubleshooting, see the full [Installation Guide](/installation).
+</Card>

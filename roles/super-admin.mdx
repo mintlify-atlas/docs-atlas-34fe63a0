@@ -1,0 +1,243 @@
+---
+title: Super Admin Role
+description: SaaS platform administrator with full system access and clinic management capabilities
+---
+
+## Overview
+
+The **Super Admin** (superadmin) role is the highest-level administrative role in DentControl. This role is designed for the SaaS platform owner and has unrestricted access to manage all clinics, users, and system-wide configurations.
+
+<Warning>
+  The Super Admin role should only be assigned to trusted platform administrators. This role has no restrictions and can modify or delete any data in the system.
+</Warning>
+
+## Key Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Platform-Wide Access" icon="globe">
+    Manage all registered clinics and their users across the entire SaaS platform
+  </Card>
+  <Card title="No Clinic Association" icon="building-circle-xmark">
+    Super Admins are not tied to a specific clinic (id_clinica is null)
+  </Card>
+  <Card title="User Management" icon="users-gear">
+    Create, edit, suspend, and reactivate users for any clinic
+  </Card>
+  <Card title="System Dashboard" icon="chart-line">
+    Access to platform-wide metrics and analytics
+  </Card>
+</CardGroup>
+
+## Accessible Routes
+
+Super Admin routes are protected by the `can:admin-only` middleware, which verifies the user's role is `superadmin`.
+
+### Dashboard
+```
+GET /admin/dashboard
+```
+View platform-wide statistics including:
+- Total active clinics
+- Total active users across all clinics
+- Total patients in the system
+- Recently registered clinics
+
+Implemented in: `app/Http/Controllers/Admin/AdminController.php:12`
+
+### Clinic Management
+
+<AccordionGroup>
+  <Accordion title="View All Clinics">
+    **Route:** `GET /clinicas`
+    
+    **Controller:** `ClinicaController@index`
+    
+    **Purpose:** Lists all registered clinics ordered by most recent first
+    
+    **Source:** `routes/web.php:22`
+  </Accordion>
+
+  <Accordion title="Create New Clinic">
+    **Route:** `POST /clinicas`
+    
+    **Controller:** `ClinicaController@store`
+    
+    **Validates:**
+    - Clinic name (max 50 chars, alphanumeric)
+    - RFC (12-13 chars, unique)
+    - Address details
+    - Phone (10 digits, unique)
+    - Optional logo upload (jpeg, png, jpg - max 2MB)
+    
+    **Source:** `routes/web.php:23`
+  </Accordion>
+
+  <Accordion title="Edit Clinic">
+    **Route:** `GET /clinicas/{id}/edit`
+    
+    **Controller:** `ClinicaController@edit`
+    
+    **Returns:** JSON with clinic data for modal editing
+    
+    **Source:** `routes/web.php:24`
+  </Accordion>
+
+  <Accordion title="Update Clinic">
+    **Route:** `PUT /clinicas/{id}`
+    
+    **Controller:** `ClinicaController@update`
+    
+    **Features:**
+    - Updates clinic information
+    - Handles logo replacement (deletes old file)
+    - Validates unique RFC and phone per clinic
+    
+    **Source:** `routes/web.php:25`
+  </Accordion>
+
+  <Accordion title="Toggle Clinic Status">
+    **Route:** `PATCH /clinicas/{id}/toggle`
+    
+    **Controller:** `ClinicaController@toggleStatus`
+    
+    **Purpose:** Activate or deactivate clinics (switches between 'activo' and 'baja')
+    
+    **Impact:** When a clinic is set to 'baja', all associated users are blocked from logging in
+    
+    **Source:** `routes/web.php:26`
+  </Accordion>
+</AccordionGroup>
+
+### User Management
+
+<AccordionGroup>
+  <Accordion title="View All Users">
+    **Route:** `GET /usuarios`
+    
+    **Controller:** `UsuarioController@index`
+    
+    **Purpose:** Lists all users with their associated clinic information
+    
+    **Source:** `routes/web.php:29`
+  </Accordion>
+
+  <Accordion title="Create New User">
+    **Route:** `POST /usuarios`
+    
+    **Controller:** `UsuarioController@store`
+    
+    **Validates:**
+    - Clinic assignment (must be an active clinic)
+    - Name, paternal surname (min 3 chars, letters only)
+    - Username (4-20 alphanumeric, unique)
+    - Password (min 8 chars, mixed case, numbers)
+    - Role (dentista or asistente)
+    - Professional license (required for dentistas, 7-10 digits)
+    
+    **Source:** `routes/web.php:30`
+  </Accordion>
+
+  <Accordion title="Edit User">
+    **Route:** `GET /usuarios/{id}/edit`
+    
+    **Controller:** `UsuarioController@edit`
+    
+    **Returns:** JSON with user data for modal editing
+    
+    **Source:** `routes/web.php:31`
+  </Accordion>
+
+  <Accordion title="Update User">
+    **Route:** `PUT /usuarios/{id}`
+    
+    **Controller:** `UsuarioController@update`
+    
+    **Protection:** Superadmin users cannot have their role changed (forced to remain 'superadmin')
+    
+    **Source:** `routes/web.php:32`
+  </Accordion>
+
+  <Accordion title="Toggle User Status">
+    **Route:** `PATCH /usuarios/{id}/toggle`
+    
+    **Controller:** `UsuarioController@toggleStatus`
+    
+    **Purpose:** Suspend or reactivate users (switches between 'activo' and 'baja')
+    
+    **Protection:** Cannot suspend other superadmin users
+    
+    **Source:** `routes/web.php:33`
+  </Accordion>
+</AccordionGroup>
+
+## Permission Boundaries
+
+<Info>
+  Super Admins are restricted from:
+  - Accessing clinic-specific routes (`/dentista/*`, `/asistente/*`)
+  - Logging in if their account status is not 'activo'
+  - Being edited or suspended by other users
+</Info>
+
+## Authentication & Authorization
+
+### Gate Definition
+
+The `admin-only` gate is defined in `AppServiceProvider.php:26`:
+
+```php
+Gate::define('admin-only', function ($user) {
+    return $user->rol === 'superadmin';
+});
+```
+
+### Login Redirection
+
+After successful authentication, Super Admins are redirected to:
+```
+/admin/dashboard
+```
+
+Implemented in: `AuthController.php:65`
+
+## Database Schema
+
+Super Admin users are stored in the `usuario` table with these distinguishing characteristics:
+
+| Field | Value |
+|-------|-------|
+| `rol` | `'superadmin'` |
+| `id_clinica` | `NULL` (not associated with any specific clinic) |
+| `estatus` | `'activo'` (required for login) |
+| `cedula_profesional` | `NULL` (not required) |
+
+## Security Considerations
+
+<Warning>
+  **Account Protection:**
+  - Super Admin accounts cannot be deleted or downgraded by other users
+  - The system forces the role to remain 'superadmin' during updates
+  - Only Super Admins can manage other Super Admins
+</Warning>
+
+<Card title="Session Management" icon="shield-check">
+  Super Admin sessions are subject to the same authentication rules:
+  - Account must have `estatus = 'activo'`
+  - Session regeneration on login for security
+  - Proper logout and token invalidation
+</Card>
+
+## Best Practices
+
+1. **Limit Super Admin Accounts**: Only create Super Admin accounts for trusted platform administrators
+2. **Monitor Activity**: Regularly audit Super Admin actions, especially clinic and user modifications
+3. **Strong Passwords**: Enforce the system's password requirements (min 8 chars, mixed case, numbers)
+4. **Clinic Status**: Use clinic deactivation (`toggle status`) instead of deleting clinics to preserve data integrity
+5. **User Suspension**: Suspend users rather than deleting them to maintain audit trails
+
+## Related Documentation
+
+- [Dentist Role](/roles/dentist) - Clinic-level management
+- [Assistant Role](/roles/assistant) - Reception and scheduling
+- [Authentication](/api/controllers/auth) - Login and session management
+- [Clinic Management](/features/clinic-management) - Detailed clinic operations

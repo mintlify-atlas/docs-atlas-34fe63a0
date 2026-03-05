@@ -1,0 +1,452 @@
+---
+title: "UsuarioController"
+description: "User management for clinic staff (dentists and assistants)"
+---
+
+## Overview
+
+The `UsuarioController` manages user accounts for dental clinic staff within the DentControl SaaS platform. This controller is exclusively for superadmin use and handles CRUD operations for creating, updating, and managing users with roles of `dentista` (dentist) and `asistente` (assistant). It includes comprehensive validation, password security rules, and status management.
+
+**Location:** `app/Http/Controllers/Admin/UsuarioController.php`
+
+**Namespace:** `App\Http\Controllers\Admin`
+
+---
+
+## Methods
+
+### index()
+
+Displays a list of all users with their associated clinic information.
+
+**Route:** `GET /usuarios`
+
+**Route Name:** `usuarios.index`
+
+**Middleware:**
+- `auth` - User must be authenticated
+- `can:admin-only` - User must have superadmin role
+
+**Response:**
+
+Returns the `admin.usuarios.index` Blade view with:
+
+<ResponseField name="usuarios" type="Collection">
+  Collection of all users with eager-loaded clinic relationships
+</ResponseField>
+
+<ResponseField name="clinicas" type="Collection">
+  Collection of active clinics (`estatus = 'activo'`) for the creation form
+</ResponseField>
+
+**Example:**
+```php
+public function index()
+{
+    $usuarios = Usuario::with('clinica')->get(); // Load users with their clinic
+    $clinicas = Clinica::where('estatus', 'activo')->get();
+    
+    return view('admin.usuarios.index', compact('usuarios', 'clinicas'));
+}
+```
+
+**Query Details:**
+- Eager loads `clinica` relationship to avoid N+1 queries
+- Only displays active clinics in the selection dropdown
+
+---
+
+### store()
+
+Creates a new user with comprehensive validation and automatic password hashing.
+
+**Route:** `POST /usuarios`
+
+**Route Name:** `usuarios.store`
+
+**Middleware:**
+- `auth`
+- `can:admin-only`
+
+**Parameters:**
+
+<ParamField body="id_clinica" type="integer" required>
+  ID of the clinic this user belongs to (must exist in `clinica` table)
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  First name (3-255 chars, letters and spaces only, includes Spanish characters)
+</ParamField>
+
+<ParamField body="apellido_paterno" type="string" required>
+  Paternal last name (3-255 chars, letters and spaces only)
+</ParamField>
+
+<ParamField body="apellido_materno" type="string" optional>
+  Maternal last name (3-255 chars, letters and spaces only)
+</ParamField>
+
+<ParamField body="nom_usuario" type="string" required>
+  Username (4-20 chars, alphanumeric only, unique)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Password with security requirements:
+  - Minimum 8 characters
+  - At least one letter
+  - Mixed case (uppercase and lowercase)
+  - At least one number
+</ParamField>
+
+<ParamField body="rol" type="string" required>
+  User role: `dentista` or `asistente`
+</ParamField>
+
+<ParamField body="cedula_profesional" type="string" optional>
+  Professional license number (7-10 digits, required if `rol = 'dentista'`)
+</ParamField>
+
+**Validation Rules:**
+```php
+[
+    'id_clinica' => 'required|exists:clinica,id_clinica',
+    'nombre' => 'required|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+    'apellido_paterno' => 'required|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+    'apellido_materno' => 'nullable|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+    'nom_usuario' => 'required|alpha_num|min:4|max:20|unique:usuario,nom_usuario',
+    'password' => [
+        'required',
+        Password::min(8)->letters()->mixedCase()->numbers()
+    ],
+    'rol' => 'required|in:dentista,asistente',
+    'cedula_profesional' => 'required_if:rol,dentista|nullable|digits_between:7,10',
+]
+```
+
+**Custom Error Messages:**
+- `nombre.regex`: "El nombre solo puede contener letras y espacios."
+- `apellido_paterno.regex`: "El apellido paterno solo puede contener letras y espacios."
+- `nombre.min`: "El nombre debe tener al menos 3 letras."
+- `password.min`: "La contraseña debe tener al menos 8 caracteres."
+- `password.letters`: "La contraseña debe incluir al menos una letra."
+- `password.mixed_case`: "La contraseña debe tener mayúsculas y minúsculas."
+- `password.numbers`: "La contraseña debe incluir al menos un número."
+
+**Response:**
+
+Redirects to `usuarios.index` with success message: "Usuario creado con éxito."
+
+**Password Handling:**
+- Password is automatically hashed via model cast (`'hashed'` cast on `password` attribute)
+- Plain text password is never stored
+
+**Example:**
+```php
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'id_clinica' => 'required|exists:clinica,id_clinica',
+        'nombre' => [
+            'required', 
+            'string', 
+            'min:3', 
+            'max:255', 
+            'regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u'
+        ],
+        // ... other validation rules
+    ]);
+
+    Usuario::create([
+        'id_clinica' => $validated['id_clinica'],
+        'nombre' => $validated['nombre'],
+        'apellido_paterno' => $validated['apellido_paterno'],
+        'apellido_materno' => $validated['apellido_materno'],
+        'nom_usuario' => $validated['nom_usuario'],
+        'password' => $validated['password'], // Auto-hashed by model cast
+        'rol' => $validated['rol'],
+        'cedula_profesional' => $request->cedula_profesional,
+        'estatus' => 'activo',
+    ]);
+    
+    return redirect()->route('usuarios.index')->with('success', 'Usuario creado con éxito.');
+}
+```
+
+---
+
+### edit()
+
+Retrieves a specific user's data for editing (AJAX endpoint).
+
+**Route:** `GET /usuarios/{id}/edit`
+
+**Route Name:** `usuarios.edit`
+
+**Middleware:**
+- `auth`
+- `can:admin-only`
+
+**Parameters:**
+
+<ParamField path="id" type="integer" required>
+  User ID (`id_usuario`)
+</ParamField>
+
+**Response:**
+
+Returns JSON representation of the user:
+
+```json
+{
+    "id_usuario": 5,
+    "id_clinica": 2,
+    "nombre": "Juan",
+    "apellido_paterno": "Pérez",
+    "apellido_materno": "García",
+    "nom_usuario": "jperez",
+    "rol": "dentista",
+    "cedula_profesional": "1234567",
+    "estatus": "activo",
+    "created_at": "2026-03-01T10:30:00.000000Z",
+    "updated_at": "2026-03-01T10:30:00.000000Z"
+}
+```
+
+**Note:** Password is never included in the response.
+
+**Example:**
+```php
+public function edit($id)
+{
+    $usuario = Usuario::findOrFail($id);
+    return response()->json($usuario);
+}
+```
+
+**Error Response:**
+- **404 Not Found** if user doesn't exist
+
+---
+
+### update()
+
+Updates an existing user with validation and optional password change.
+
+**Route:** `PUT /usuarios/{id}`
+
+**Route Name:** `usuarios.update`
+
+**Middleware:**
+- `auth`
+- `can:admin-only`
+
+**Parameters:**
+
+<ParamField path="id" type="integer" required>
+  User ID (`id_usuario`)
+</ParamField>
+
+<ParamField body="id_clinica" type="integer" required>
+  Clinic ID
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  First name
+</ParamField>
+
+<ParamField body="apellido_paterno" type="string" required>
+  Paternal last name
+</ParamField>
+
+<ParamField body="apellido_materno" type="string" optional>
+  Maternal last name
+</ParamField>
+
+<ParamField body="nom_usuario" type="string" required>
+  Username (unique, excluding current user)
+</ParamField>
+
+<ParamField body="password" type="string" optional>
+  New password (only validated if provided). Same security requirements as store.
+</ParamField>
+
+<ParamField body="rol" type="string" required>
+  User role: `superadmin`, `dentista`, or `asistente`
+</ParamField>
+
+**Validation Rules:**
+```php
+[
+    'id_clinica' => 'required',
+    'nombre' => 'required|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+    'apellido_paterno' => 'required|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+    'apellido_materno' => 'nullable|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+    'nom_usuario' => 'required|unique:usuario,nom_usuario,' . $id . ',id_usuario',
+    'rol' => 'required|in:superadmin,dentista,asistente',
+    // password only if filled:
+    'password' => 'required|Password::min(8)->letters()->mixedCase()->numbers()'
+]
+```
+
+**Superadmin Protection:**
+- If user being edited has `rol = 'superadmin'`:
+  - Role is forced to remain `'superadmin'` (cannot be downgraded)
+  - This prevents accidental lockout of superadmin accounts
+
+**Password Handling:**
+- If `password` field is empty/not provided:
+  - Password validation is skipped
+  - Password is not updated (kept unchanged)
+- If `password` field has a value:
+  - Full password validation applies
+  - Password is hashed and updated
+
+**Response:**
+
+Redirects to `usuarios.index` with success message: "Usuario actualizado correctamente."
+
+**Example:**
+```php
+public function update(Request $request, $id)
+{
+    $usuario = Usuario::findOrFail($id);
+
+    // Protect superadmin role from being changed
+    if ($usuario->rol === 'superadmin') {
+        $request->merge(['rol' => 'superadmin']);
+    }
+    
+    $rules = [
+        'id_clinica' => 'required',
+        'nombre' => 'required|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+        'apellido_paterno' => 'required|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+        'apellido_materno' => 'nullable|string|min:3|max:255|regex:/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/u',
+        'nom_usuario' => 'required|unique:usuario,nom_usuario,' . $id . ',id_usuario',
+        'rol' => 'required|in:superadmin,dentista,asistente',
+    ];
+
+    // Only validate password if user provided a new one
+    if ($request->filled('password')) {
+        $rules['password'] = [
+            'required',    
+            \Illuminate\Validation\Rules\Password::min(8)->letters()->mixedCase()->numbers()
+        ];
+    }
+
+    $validated = $request->validate($rules);
+    
+    if (!$request->filled('password')) {
+        unset($validated['password']); // Don't update password if empty
+    }
+
+    $usuario->update($validated);
+
+    return redirect()->route('usuarios.index')->with('success', 'Usuario actualizado correctamente.');
+}
+```
+
+---
+
+### toggleStatus()
+
+Toggles a user's status between active and inactive, with superadmin protection.
+
+**Route:** `PATCH /usuarios/{id}/toggle`
+
+**Route Name:** `usuarios.toggle`
+
+**Middleware:**
+- `auth`
+- `can:admin-only`
+
+**Parameters:**
+
+<ParamField path="id" type="integer" required>
+  User ID (`id_usuario`)
+</ParamField>
+
+**Status Logic:**
+- If `estatus = 'activo'` → changes to `'baja'`
+- If `estatus = 'baja'` → changes to `'activo'`
+
+**Superadmin Protection:**
+- Users with `rol = 'admin'` cannot be suspended
+- Returns error message: "El Superadministrador no puede ser suspendido."
+
+**Response:**
+
+**Success:**
+Redirects back with success message:
+- `'activo'`: "El usuario {nom_usuario} ha sido reactivado."
+- `'baja'`: "El acceso de {nom_usuario} ha sido suspendido."
+
+**Error (if superadmin):**
+Redirects back with error: "El Superadministrador no puede ser suspendido."
+
+**Example:**
+```php
+public function toggleStatus($id)
+{
+    $usuario = Usuario::findOrFail($id);
+
+    // Prevent suspending superadmin
+    if ($usuario->rol === 'admin') {
+        return redirect()->back()->with('error', 'El Superadministrador no puede ser suspendido.');
+    }
+    
+    // Toggle status
+    $nuevoEstado = ($usuario->estatus == 'activo') ? 'baja' : 'activo';
+    
+    $usuario->update(['estatus' => $nuevoEstado]);
+
+    $mensaje = ($nuevoEstado == 'activo') 
+        ? "El usuario {$usuario->nom_usuario} ha sido reactivado." 
+        : "El acceso de {$usuario->nom_usuario} ha sido suspendido.";
+    
+    return redirect()->back()->with('success', $mensaje);
+}
+```
+
+**Impact:**
+- When a user is set to `'baja'`, they cannot log in
+- The `AuthController` checks user status during login
+
+---
+
+## Summary
+
+The `UsuarioController` provides **5 methods** for complete user management:
+
+1. **index()** - List all users with clinic relationships
+2. **store()** - Create new user with role and password validation
+3. **edit()** - Get user data (JSON for AJAX)
+4. **update()** - Update user with optional password change
+5. **toggleStatus()** - Activate/suspend user account
+
+**Key Features:**
+- Strong password requirements (8+ chars, mixed case, numbers)
+- Role-based user creation (dentista, asistente)
+- Superadmin protection (cannot be edited or suspended)
+- Professional license validation for dentists
+- Automatic password hashing via model casts
+- Spanish character support in names
+- Username uniqueness validation
+- Status toggling with login impact
+- Optional password updates (leave blank to keep existing)
+- Only active clinics selectable for new users
+
+**Route Summary:**
+```
+GET    /usuarios              → index()
+POST   /usuarios              → store()
+GET    /usuarios/{id}/edit    → edit()
+PUT    /usuarios/{id}         → update()
+PATCH  /usuarios/{id}/toggle  → toggleStatus()
+```
+
+**Security Features:**
+- Password never returned in JSON responses
+- Automatic password hashing
+- Superadmin role immutability
+- Suspended users cannot log in
+- Username and clinic foreign key validation

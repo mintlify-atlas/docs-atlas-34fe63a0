@@ -1,97 +1,242 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative overflow-hidden dark:bg-[#0f1117] bg-white py-20">
+  <div className="absolute inset-0 bg-gradient-to-br from-[#ef370f]/10 via-transparent to-[#f79d72]/10 dark:from-[#ef370f]/5 dark:via-transparent dark:to-[#f79d72]/5"></div>
+  <div className="relative max-w-6xl mx-auto px-6">
+    <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold dark:text-white text-gray-900 mb-6">
+          Welcome to DentControl Documentation
+        </h1>
+        <p className="text-lg sm:text-xl dark:text-gray-400 text-gray-600 mb-8 max-w-2xl">
+          Comprehensive dental clinic management for modern practices. Manage patients, appointments, treatments, and clinical records all in one place.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a 
+            href="/quickstart" 
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-[#ef370f] text-white font-semibold hover:bg-[#d42f0d] transition-colors no-underline"
+          >
+            Get Started
+          </a>
+          <a 
+            href="/introduction" 
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border dark:border-white/30 border-gray-300 dark:bg-white/10 bg-white dark:text-white text-gray-900 font-semibold dark:hover:bg-white/20 hover:bg-gray-50 transition-colors no-underline"
+          >
+            Learn More
+          </a>
+        </div>
+      </div>
+      <div className="lg:col-span-5 hidden lg:block">
+        <div className="relative w-full h-64 flex items-center justify-center dark:bg-[#1a1d27] bg-gray-50 rounded-2xl border dark:border-[#27272a] border-gray-200">
+          <svg className="w-32 h-32 dark:text-gray-700 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold dark:text-white text-gray-900 mb-4">
+    Quick Start
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Get DentControl up and running in minutes
+  </p>
+  
+  <Steps>
+    <Step title="Install Dependencies">
+      Clone the repository and install all required PHP and Node.js dependencies.
+      
+      ```bash
+      git clone https://github.com/Ary-dev04/DentControl.git
+      cd DentControl
+      composer install
+      npm install
+      ```
+    </Step>
+    
+    <Step title="Configure Environment">
+      Copy the environment file and generate your application key.
+      
+      ```bash
+      cp .env.example .env
+      php artisan key:generate
+      ```
+      
+      <Note>
+        Update your `.env` file with your database credentials and other configuration settings.
+      </Note>
+    </Step>
+    
+    <Step title="Run Migrations">
+      Set up the database schema with all required tables.
+      
+      ```bash
+      php artisan migrate
+      ```
+    </Step>
+    
+    <Step title="Start the Application">
+      Launch the development server and build frontend assets.
+      
+      ```bash
+      php artisan serve
+      npm run dev
+      ```
+      
+      <Check>
+        Your DentControl instance is now running at `http://localhost:8000`
+      </Check>
+    </Step>
+  </Steps>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold dark:text-white text-gray-900 mb-4">
+    Core Features
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Everything you need to manage your dental practice
+  </p>
+  
+  <CardGroup cols={2}>
     <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+      title="Multi-Clinic Management"
+      icon="hospital"
+      href="/features/clinic-management"
+    >
+      Manage multiple dental clinics with tenant isolation and centralized administration.
+    </Card>
+    <Card
+      title="Patient Records"
+      icon="user"
+      href="/features/patient-management"
+    >
+      Comprehensive patient profiles with demographics, contact info, and medical history.
+    </Card>
+    <Card
+      title="Appointment Scheduling"
+      icon="calendar"
+      href="/features/appointments"
+    >
+      Smart scheduling system for managing patient appointments and dentist availability.
+    </Card>
+    <Card
+      title="Treatment Tracking"
+      icon="notes-medical"
+      href="/features/treatments"
+    >
+      Track treatment plans, procedures, and progress for each patient.
+    </Card>
+    <Card
+      title="Clinical Records"
+      icon="file-medical"
+      href="/features/clinical-records"
+    >
+      Maintain detailed clinical files and evolution notes for every patient visit.
+    </Card>
+    <Card
+      title="Role-Based Access"
+      icon="shield"
+      href="/roles/super-admin"
+    >
+      Fine-grained permissions for admins, dentists, and assistants.
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold dark:text-white text-gray-900 mb-4">
+    Explore by Role
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Learn what each user role can do in DentControl
+  </p>
+  
+  <CardGroup cols={3}>
+    <Card
+      title="Super Admin"
+      icon="crown"
+      href="/roles/super-admin"
+    >
+      Full system access to manage clinics, users, and global settings.
+    </Card>
+    <Card
+      title="Dentist"
+      icon="tooth"
+      href="/roles/dentist"
+    >
+      Manage patients, appointments, and treatments for your clinic.
+    </Card>
+    <Card
+      title="Assistant"
+      icon="user-nurse"
+      href="/roles/assistant"
+    >
+      Handle reception, scheduling, and patient check-in tasks.
+    </Card>
+  </CardGroup>
+</div>
 
-Everything you need to create world-class documentation.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold dark:text-white text-gray-900 mb-4">
+    Technical Reference
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Deep dive into models, controllers, and API structure
+  </p>
+  
+  <CardGroup cols={2}>
+    <Card
+      title="Data Models"
+      icon="database"
+      href="/api/models/clinica"
+    >
+      Explore the database schema and Eloquent model relationships.
+    </Card>
+    <Card
+      title="Controllers"
+      icon="code"
+      href="/api/controllers/auth"
+    >
+      Understand the application controllers and request handling.
+    </Card>
+    <Card
+      title="Configuration Guide"
+      icon="gear"
+      href="/guides/configuration"
+    >
+      Learn how to configure DentControl for your environment.
+    </Card>
+    <Card
+      title="Deployment"
+      icon="rocket"
+      href="/guides/deployment"
+    >
+      Deploy DentControl to production with best practices.
+    </Card>
+  </CardGroup>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="dark:bg-[#1a1d27] bg-gray-50 rounded-2xl border dark:border-[#27272a] border-gray-200 p-8 sm:p-12">
+    <div className="text-center max-w-2xl mx-auto">
+      <h2 className="text-2xl sm:text-3xl font-bold dark:text-white text-gray-900 mb-4">
+        Ready to get started?
+      </h2>
+      <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+        Follow our quickstart guide to set up DentControl and create your first clinic in minutes.
+      </p>
+      <a 
+        href="/quickstart" 
+        className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-[#ef370f] text-white font-semibold hover:bg-[#d42f0d] transition-colors no-underline"
+      >
+        View Quickstart Guide
+      </a>
+    </div>
+  </div>
+</div>

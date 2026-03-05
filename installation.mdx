@@ -1,0 +1,789 @@
+---
+title: Installation
+description: Complete installation guide for DentControl
+---
+
+## System Requirements
+
+Before installing DentControl, ensure your system meets these requirements:
+
+### Server Requirements
+
+- **PHP**: 8.2 or higher
+- **Composer**: Latest stable version
+- **Node.js**: 18.x or higher
+- **npm**: 9.x or higher (comes with Node.js)
+
+### PHP Extensions
+
+DentControl requires the following PHP extensions:
+
+- OpenSSL
+- PDO
+- Mbstring
+- Tokenizer
+- XML
+- Ctype
+- JSON
+- BCMath
+- Fileinfo
+
+<Info>
+Most PHP installations include these extensions by default. Use `php -m` to verify installed extensions.
+</Info>
+
+### Database Options
+
+DentControl supports multiple database systems:
+
+- **SQLite** (default, recommended for development)
+- **MySQL** 8.0+ or MariaDB 10.3+
+- **PostgreSQL** 12+
+
+### Recommended Server Specifications
+
+<CardGroup cols={2}>
+  <Card title="Development">
+    - 2 CPU cores
+    - 2GB RAM
+    - 5GB storage
+  </Card>
+  <Card title="Production">
+    - 4+ CPU cores
+    - 8GB+ RAM
+    - 20GB+ storage (SSD)
+  </Card>
+</CardGroup>
+
+## Installation Methods
+
+### Method 1: Automated Setup (Recommended)
+
+The fastest way to get started:
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone <repository-url> dentcontrol
+    cd dentcontrol
+    ```
+  </Step>
+
+  <Step title="Run Setup Script">
+    ```bash
+    composer setup
+    ```
+    
+    This automated script performs:
+    - Dependency installation
+    - Environment configuration
+    - Database initialization
+    - Asset compilation
+  </Step>
+
+  <Step title="Start Development Server">
+    ```bash
+    composer dev
+    ```
+  </Step>
+</Steps>
+
+### Method 2: Manual Installation
+
+For more control over the installation process:
+
+<Steps>
+  <Step title="Install PHP Dependencies">
+    ```bash
+    composer install
+    ```
+    
+    <Note>
+    For production, use `composer install --optimize-autoloader --no-dev`
+    </Note>
+  </Step>
+
+  <Step title="Configure Environment">
+    Copy the example environment file:
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Generate application key:
+    ```bash
+    php artisan key:generate
+    ```
+  </Step>
+
+  <Step title="Configure Database">
+    Edit `.env` file with your database settings:
+    
+    <CodeGroup>
+    ```bash SQLite (Default)
+    DB_CONNECTION=sqlite
+    # Database file will be created at database/database.sqlite
+    ```
+    
+    ```bash MySQL
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=dentcontrol
+    DB_USERNAME=your_username
+    DB_PASSWORD=your_password
+    ```
+    
+    ```bash PostgreSQL
+    DB_CONNECTION=pgsql
+    DB_HOST=127.0.0.1
+    DB_PORT=5432
+    DB_DATABASE=dentcontrol
+    DB_USERNAME=your_username
+    DB_PASSWORD=your_password
+    ```
+    </CodeGroup>
+    
+    <Warning>
+    For SQLite, create the database file:
+    ```bash
+    touch database/database.sqlite
+    ```
+    </Warning>
+  </Step>
+
+  <Step title="Run Migrations">
+    Create database tables:
+    ```bash
+    php artisan migrate
+    ```
+    
+    The migration system will create:
+    - User authentication tables
+    - Clinic management tables
+    - Patient records tables
+    - Appointment scheduling tables
+    - Treatment and clinical records tables
+    - Service catalogs
+  </Step>
+
+  <Step title="Install Frontend Dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="Build Assets">
+    For development:
+    ```bash
+    npm run dev
+    ```
+    
+    For production:
+    ```bash
+    npm run build
+    ```
+  </Step>
+
+  <Step title="Set Permissions">
+    Ensure storage and cache directories are writable:
+    ```bash
+    chmod -R 775 storage bootstrap/cache
+    chown -R www-data:www-data storage bootstrap/cache
+    ```
+    
+    <Note>
+    Replace `www-data` with your web server user (e.g., `nginx`, `apache`, or your username for development).
+    </Note>
+  </Step>
+</Steps>
+
+## Database Configuration
+
+### SQLite Setup (Development)
+
+SQLite is perfect for development and small deployments:
+
+```bash
+# Create database file
+touch database/database.sqlite
+
+# Update .env
+DB_CONNECTION=sqlite
+
+# Run migrations
+php artisan migrate
+```
+
+**Advantages**:
+- No database server required
+- Zero configuration
+- Perfect for development
+- Easy backups (single file)
+
+**Limitations**:
+- Limited concurrency
+- Not suitable for high-traffic production
+
+### MySQL Setup (Production)
+
+For production environments, MySQL/MariaDB is recommended:
+
+<Steps>
+  <Step title="Create Database">
+    ```sql
+    CREATE DATABASE dentcontrol CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER 'dentcontrol'@'localhost' IDENTIFIED BY 'secure_password';
+    GRANT ALL PRIVILEGES ON dentcontrol.* TO 'dentcontrol'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+  </Step>
+
+  <Step title="Configure .env">
+    ```bash
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=dentcontrol
+    DB_USERNAME=dentcontrol
+    DB_PASSWORD=secure_password
+    ```
+  </Step>
+
+  <Step title="Run Migrations">
+    ```bash
+    php artisan migrate
+    ```
+  </Step>
+</Steps>
+
+### PostgreSQL Setup (Production)
+
+PostgreSQL offers advanced features for larger deployments:
+
+<Steps>
+  <Step title="Create Database">
+    ```sql
+    CREATE DATABASE dentcontrol WITH ENCODING 'UTF8';
+    CREATE USER dentcontrol WITH ENCRYPTED PASSWORD 'secure_password';
+    GRANT ALL PRIVILEGES ON DATABASE dentcontrol TO dentcontrol;
+    ```
+  </Step>
+
+  <Step title="Configure .env">
+    ```bash
+    DB_CONNECTION=pgsql
+    DB_HOST=127.0.0.1
+    DB_PORT=5432
+    DB_DATABASE=dentcontrol
+    DB_USERNAME=dentcontrol
+    DB_PASSWORD=secure_password
+    ```
+  </Step>
+
+  <Step title="Run Migrations">
+    ```bash
+    php artisan migrate
+    ```
+  </Step>
+</Steps>
+
+## Environment Configuration
+
+### Essential Settings
+
+Configure these essential settings in your `.env` file:
+
+```bash .env
+# Application
+APP_NAME=DentControl
+APP_ENV=production  # or 'local' for development
+APP_KEY=base64:...  # Generated by 'php artisan key:generate'
+APP_DEBUG=false     # Set to 'true' only in development
+APP_URL=https://your-domain.com
+
+# Database (example for MySQL)
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=dentcontrol
+DB_USERNAME=dentcontrol
+DB_PASSWORD=your_secure_password
+
+# Session & Cache
+SESSION_DRIVER=database  # Important for multi-tenant support
+SESSION_LIFETIME=120
+CACHE_STORE=database
+
+# Queue System
+QUEUE_CONNECTION=database  # or 'redis' for better performance
+
+# Mail Configuration
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_username
+MAIL_PASSWORD=your_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@dentcontrol.com
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+<Warning>
+**Security Notice**: Never commit your `.env` file to version control. It contains sensitive credentials.
+</Warning>
+
+### Session Configuration
+
+<Note>
+DentControl uses **database sessions** for multi-tenant support. This ensures proper session isolation between clinics.
+</Note>
+
+The session table is created automatically by migrations. Verify it exists:
+
+```bash
+php artisan migrate:status | grep sessions
+```
+
+### Queue Configuration
+
+Queues handle background jobs. For production, consider Redis:
+
+```bash
+# Install Redis PHP extension
+sudo apt-get install php-redis
+
+# Update .env
+QUEUE_CONNECTION=redis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+
+Start the queue worker:
+```bash
+php artisan queue:work --tries=3 --timeout=90
+```
+
+## Web Server Configuration
+
+### Apache Setup
+
+<Steps>
+  <Step title="Enable Required Modules">
+    ```bash
+    sudo a2enmod rewrite
+    sudo systemctl restart apache2
+    ```
+  </Step>
+
+  <Step title="Configure Virtual Host">
+    Create `/etc/apache2/sites-available/dentcontrol.conf`:
+    
+    ```apache
+    <VirtualHost *:80>
+        ServerName dentcontrol.local
+        DocumentRoot /var/www/dentcontrol/public
+
+        <Directory /var/www/dentcontrol/public>
+            AllowOverride All
+            Require all granted
+        </Directory>
+
+        ErrorLog ${APACHE_LOG_DIR}/dentcontrol-error.log
+        CustomLog ${APACHE_LOG_DIR}/dentcontrol-access.log combined
+    </VirtualHost>
+    ```
+  </Step>
+
+  <Step title="Enable Site">
+    ```bash
+    sudo a2ensite dentcontrol.conf
+    sudo systemctl reload apache2
+    ```
+  </Step>
+</Steps>
+
+### Nginx Setup
+
+<Steps>
+  <Step title="Configure Server Block">
+    Create `/etc/nginx/sites-available/dentcontrol`:
+    
+    ```nginx
+    server {
+        listen 80;
+        server_name dentcontrol.local;
+        root /var/www/dentcontrol/public;
+
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-Content-Type-Options "nosniff";
+
+        index index.php;
+
+        charset utf-8;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
+
+        error_page 404 /index.php;
+
+        location ~ \.php$ {
+            fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Enable Site">
+    ```bash
+    sudo ln -s /etc/nginx/sites-available/dentcontrol /etc/nginx/sites-enabled/
+    sudo nginx -t
+    sudo systemctl reload nginx
+    ```
+  </Step>
+</Steps>
+
+## Production Deployment
+
+### Optimization
+
+Optimize the application for production:
+
+```bash
+# Cache configuration
+php artisan config:cache
+
+# Cache routes
+php artisan route:cache
+
+# Cache views
+php artisan view:cache
+
+# Optimize autoloader
+composer install --optimize-autoloader --no-dev
+```
+
+### Security Checklist
+
+<Steps>
+  <Step title="Environment Security">
+    - [ ] Set `APP_DEBUG=false`
+    - [ ] Set `APP_ENV=production`
+    - [ ] Use strong, random `APP_KEY`
+    - [ ] Secure database credentials
+    - [ ] Configure HTTPS
+  </Step>
+
+  <Step title="File Permissions">
+    ```bash
+    # Application files
+    find /var/www/dentcontrol -type f -exec chmod 644 {} \;
+    find /var/www/dentcontrol -type d -exec chmod 755 {} \;
+    
+    # Storage and cache
+    chmod -R 775 storage bootstrap/cache
+    chown -R www-data:www-data storage bootstrap/cache
+    ```
+  </Step>
+
+  <Step title="Hide Sensitive Files">
+    Ensure `.env`, `.git`, and other sensitive files are not web-accessible (handled by `public/` directory structure).
+  </Step>
+
+  <Step title="Enable HTTPS">
+    Install and configure SSL certificate using Let's Encrypt:
+    ```bash
+    sudo certbot --nginx -d your-domain.com
+    ```
+  </Step>
+</Steps>
+
+### Process Management
+
+Use Supervisor to keep queue workers running:
+
+```ini /etc/supervisor/conf.d/dentcontrol-worker.conf
+[program:dentcontrol-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/dentcontrol/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/www/dentcontrol/storage/logs/worker.log
+stopwaitsecs=3600
+```
+
+Reload Supervisor:
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start dentcontrol-worker:*
+```
+
+## Creating the First Super Admin
+
+After installation, create your first super admin user:
+
+<CodeGroup>
+```bash Via Tinker
+php artisan tinker
+
+# Then run:
+App\Models\Usuario::create([
+    'nombre' => 'Admin',
+    'apellido_paterno' => 'System',
+    'apellido_materno' => 'Root',
+    'email' => 'admin@yourcompany.com',
+    'password' => bcrypt('ChangeThisPassword123!'),
+    'rol' => 'super_admin',
+    'estatus' => 1,
+    'id_clinica' => null  // Super admin not tied to a clinic
+]);
+```
+
+```php Create Seeder
+// database/seeders/SuperAdminSeeder.php
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Usuario;
+use Illuminate\Support\Facades\Hash;
+
+class SuperAdminSeeder extends Seeder
+{
+    public function run()
+    {
+        Usuario::create([
+            'nombre' => 'Admin',
+            'apellido_paterno' => 'System',
+            'apellido_materno' => 'Root',
+            'email' => 'admin@yourcompany.com',
+            'password' => Hash::make('ChangeThisPassword123!'),
+            'rol' => 'super_admin',
+            'estatus' => 1,
+            'id_clinica' => null
+        ]);
+    }
+}
+
+// Then run:
+php artisan db:seed --class=SuperAdminSeeder
+```
+</CodeGroup>
+
+<Warning>
+**Important**: Change the default password immediately after first login!
+</Warning>
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="500 Internal Server Error">
+    **Possible causes**:
+    - Missing `.env` file
+    - Incorrect file permissions
+    - Missing `APP_KEY`
+    
+    **Solutions**:
+    ```bash
+    # Check if .env exists
+    ls -la .env
+    
+    # Generate app key
+    php artisan key:generate
+    
+    # Fix permissions
+    chmod -R 775 storage bootstrap/cache
+    ```
+  </Accordion>
+
+  <Accordion title="Database Connection Failed">
+    **For SQLite**:
+    ```bash
+    # Ensure file exists
+    touch database/database.sqlite
+    chmod 664 database/database.sqlite
+    ```
+    
+    **For MySQL/PostgreSQL**:
+    - Verify credentials in `.env`
+    - Test connection: `php artisan db:show`
+    - Check if database exists
+    - Verify user permissions
+  </Accordion>
+
+  <Accordion title="Assets Not Loading">
+    ```bash
+    # Clear cache
+    php artisan cache:clear
+    php artisan view:clear
+    
+    # Rebuild assets
+    npm run build
+    
+    # Check public/build directory exists
+    ls -la public/build
+    ```
+  </Accordion>
+
+  <Accordion title="Queue Jobs Not Processing">
+    ```bash
+    # Check queue worker is running
+    ps aux | grep "queue:work"
+    
+    # Check failed jobs
+    php artisan queue:failed
+    
+    # Retry failed jobs
+    php artisan queue:retry all
+    
+    # Start worker manually
+    php artisan queue:work --tries=3
+    ```
+  </Accordion>
+
+  <Accordion title="Session/Login Issues">
+    DentControl uses database sessions. Ensure:
+    ```bash
+    # Verify session table exists
+    php artisan migrate:status | grep session
+    
+    # Clear session cache
+    php artisan session:table
+    php artisan migrate
+    
+    # Check .env
+    SESSION_DRIVER=database
+    ```
+  </Accordion>
+
+  <Accordion title="Permission Denied Errors">
+    ```bash
+    # Fix storage permissions
+    sudo chown -R www-data:www-data storage bootstrap/cache
+    chmod -R 775 storage bootstrap/cache
+    
+    # For development (use your username)
+    sudo chown -R $USER:www-data storage bootstrap/cache
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Debug Mode
+
+For development troubleshooting:
+
+```bash .env
+APP_DEBUG=true
+LOG_LEVEL=debug
+```
+
+Check logs:
+```bash
+# View Laravel logs
+tail -f storage/logs/laravel.log
+
+# Or use Pail for real-time logs
+php artisan pail
+```
+
+<Warning>
+**Never enable debug mode in production** - it exposes sensitive information!
+</Warning>
+
+## Backup Strategy
+
+### Database Backups
+
+<CodeGroup>
+```bash SQLite
+# Simple file copy
+cp database/database.sqlite backups/database-$(date +%Y%m%d).sqlite
+```
+
+```bash MySQL
+# Using mysqldump
+mysqldump -u dentcontrol -p dentcontrol > backup-$(date +%Y%m%d).sql
+```
+
+```bash PostgreSQL
+# Using pg_dump
+pg_dump -U dentcontrol dentcontrol > backup-$(date +%Y%m%d).sql
+```
+</CodeGroup>
+
+### Application Backups
+
+```bash
+# Backup uploaded files and storage
+tar -czf storage-backup-$(date +%Y%m%d).tar.gz storage/app
+
+# Backup .env configuration
+cp .env env-backup-$(date +%Y%m%d)
+```
+
+## Performance Tuning
+
+### OPcache Configuration
+
+Enable PHP OPcache for better performance:
+
+```ini /etc/php/8.2/fpm/conf.d/10-opcache.ini
+opcache.enable=1
+opcache.memory_consumption=256
+opcache.interned_strings_buffer=16
+opcache.max_accelerated_files=10000
+opcache.revalidate_freq=2
+opcache.validate_timestamps=0  # Production only
+```
+
+### Database Optimization
+
+```sql
+-- MySQL: Analyze and optimize tables
+ANALYZE TABLE clinica, paciente, citas, tratamiento;
+OPTIMIZE TABLE clinica, paciente, citas, tratamiento;
+
+-- Add indexes for frequently queried fields
+CREATE INDEX idx_paciente_clinica ON paciente(id_clinica);
+CREATE INDEX idx_citas_fecha ON citas(fecha_cita);
+```
+
+## Next Steps
+
+Your DentControl installation is complete! Here's what to do next:
+
+<CardGroup cols={2}>
+  <Card title="Create Your First Clinic" icon="hospital">
+    Log in as super admin and create your first dental clinic
+  </Card>
+  <Card title="Configure Mail" icon="envelope">
+    Set up email notifications for appointments and reminders
+  </Card>
+  <Card title="Add Users" icon="users">
+    Create dentist and assistant accounts for your clinic
+  </Card>
+  <Card title="Customize Settings" icon="gear">
+    Configure service catalogs and treatment templates
+  </Card>
+</CardGroup>
+
+<Note>
+For questions or issues, consult the application logs at `storage/logs/laravel.log` or use `php artisan pail` for real-time monitoring.
+</Note>

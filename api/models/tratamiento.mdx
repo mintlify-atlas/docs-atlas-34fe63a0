@@ -1,0 +1,313 @@
+---
+title: "Tratamiento Model"
+description: "Treatment plan management and tracking model"
+---
+
+## Overview
+
+The `Tratamiento` model represents comprehensive treatment plans in the DentControl system. It manages long-term dental treatments, tracking diagnosis, costs, scheduling, and progress through multiple appointments.
+
+## Table Schema
+
+<ParamField path="table" type="string" default="tratamiento">
+  Database table name
+</ParamField>
+
+<ParamField path="primaryKey" type="integer" default="id_tratamiento">
+  Primary key column (auto-incrementing)
+</ParamField>
+
+<ParamField path="timestamps" type="boolean" default="true">
+  Includes `created_at` and `updated_at` columns
+</ParamField>
+
+## Fields
+
+### Relationships
+
+<ParamField path="id_paciente" type="integer" required>
+  Foreign key to the patient receiving treatment
+</ParamField>
+
+<ParamField path="id_usuario" type="integer" required>
+  Foreign key to the dentist providing treatment
+</ParamField>
+
+<ParamField path="id_clinica" type="integer" required>
+  Foreign key to the clinic where treatment is performed
+</ParamField>
+
+<ParamField path="id_cat_tratamientos" type="integer" required>
+  Foreign key to the treatment catalog entry
+</ParamField>
+
+### Clinical Information
+
+<ParamField path="diagnostico_inicial" type="text">
+  Initial diagnosis and treatment notes
+</ParamField>
+
+### Financial
+
+<ParamField path="precio_final" type="decimal">
+  Final agreed price (precision: 10 digits, 2 decimals)
+</ParamField>
+
+### Scheduling
+
+<ParamField path="fecha_inicio" type="date">
+  Treatment start date (format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="fecha_fin" type="date">
+  Treatment completion/expected end date (format: YYYY-MM-DD)
+</ParamField>
+
+### Status
+
+<ParamField path="estatus" type="enum" default="curso">
+  Treatment status: `curso`, `finalizado`, or `pausado`
+</ParamField>
+
+## Relationships
+
+### paciente
+
+**Type:** `belongsTo`
+
+A treatment belongs to one patient.
+
+```php
+$tratamiento->paciente; // Paciente model instance
+```
+
+**Foreign Key:** `id_paciente`
+
+### usuario
+
+**Type:** `belongsTo`
+
+A treatment is managed by one dentist.
+
+```php
+$tratamiento->usuario; // Usuario model instance
+```
+
+**Foreign Key:** `id_usuario`
+
+### clinica
+
+**Type:** `belongsTo`
+
+A treatment is performed at one clinic.
+
+```php
+$tratamiento->clinica; // Clinica model instance
+```
+
+**Foreign Key:** `id_clinica`
+
+### catalogoTratamiento
+
+**Type:** `belongsTo`
+
+A treatment is based on a catalog entry.
+
+```php
+$tratamiento->catalogoTratamiento; // CatalogoTratamiento model instance
+```
+
+**Foreign Key:** `id_cat_tratamientos`
+
+### citas
+
+**Type:** `hasMany`
+
+A treatment has many associated appointments.
+
+```php
+$tratamiento->citas; // Collection of Cita models
+```
+
+**Foreign Key:** `id_tratamiento` on `citas` table
+
+### notasEvolucion
+
+**Type:** `hasMany`
+
+A treatment has many progress notes.
+
+```php
+$tratamiento->notasEvolucion; // Collection of NotasEvolucion models
+```
+
+**Foreign Key:** `id_tratamiento` on `notas_evolucion` table
+
+## Example Usage
+
+### Creating a New Treatment
+
+```php
+use App\Models\Tratamiento;
+
+$tratamiento = Tratamiento::create([
+    'id_paciente' => 1,
+    'id_usuario' => 5,
+    'id_clinica' => 1,
+    'id_cat_tratamientos' => 3,
+    'diagnostico_inicial' => 'Paciente requiere ortodoncia correctiva por maloclusión clase II',
+    'precio_final' => 35000.00,
+    'fecha_inicio' => '2026-03-01',
+    'fecha_fin' => '2027-03-01',
+    'estatus' => 'curso'
+]);
+```
+
+### Retrieving Treatment with Relationships
+
+```php
+// Get treatment with all related data
+$tratamiento = Tratamiento::with([
+    'paciente',
+    'usuario',
+    'clinica',
+    'catalogoTratamiento',
+    'citas',
+    'notasEvolucion'
+])->find($id);
+
+// Get treatment with appointment count
+$tratamiento = Tratamiento::withCount('citas')->find($id);
+echo "Total de citas: " . $tratamiento->citas_count;
+```
+
+### Querying Treatments
+
+```php
+// Get active treatments for a patient
+$tratamientosActivos = Tratamiento::where('id_paciente', $pacienteId)
+    ->where('estatus', 'curso')
+    ->with(['catalogoTratamiento', 'usuario'])
+    ->get();
+
+// Get all treatments by dentist
+$tratamientos = Tratamiento::where('id_usuario', $usuarioId)
+    ->with(['paciente', 'catalogoTratamiento'])
+    ->orderBy('created_at', 'desc')
+    ->get();
+
+// Get treatments by status
+$finalizados = Tratamiento::where('estatus', 'finalizado')
+    ->where('id_clinica', $clinicaId)
+    ->whereBetween('fecha_fin', [$startDate, $endDate])
+    ->get();
+```
+
+### Updating Treatment Status
+
+```php
+// Complete a treatment
+$tratamiento = Tratamiento::find($id);
+$tratamiento->update([
+    'estatus' => 'finalizado',
+    'fecha_fin' => now()->toDateString()
+]);
+
+// Pause a treatment
+$tratamiento->update([
+    'estatus' => 'pausado'
+]);
+
+// Resume a paused treatment
+$tratamiento->update([
+    'estatus' => 'curso'
+]);
+```
+
+### Treatment Progress Tracking
+
+```php
+// Get treatment with appointments and progress notes
+$tratamiento = Tratamiento::with([
+    'citas' => function ($query) {
+        $query->orderBy('fecha', 'asc');
+    },
+    'notasEvolucion' => function ($query) {
+        $query->orderBy('created_at', 'desc');
+    }
+])->find($id);
+
+// Calculate treatment duration
+$fechaInicio = Carbon::parse($tratamiento->fecha_inicio);
+$fechaFin = $tratamiento->fecha_fin 
+    ? Carbon::parse($tratamiento->fecha_fin) 
+    : now();
+$duracionMeses = $fechaInicio->diffInMonths($fechaFin);
+```
+
+### Financial Reporting
+
+```php
+// Get total revenue from completed treatments
+$totalIngreso = Tratamiento::where('id_clinica', $clinicaId)
+    ->where('estatus', 'finalizado')
+    ->sum('precio_final');
+
+// Get average treatment cost by catalog type
+$promedios = Tratamiento::selectRaw('id_cat_tratamientos, AVG(precio_final) as promedio')
+    ->where('id_clinica', $clinicaId)
+    ->groupBy('id_cat_tratamientos')
+    ->with('catalogoTratamiento')
+    ->get();
+```
+
+### Treatment Statistics
+
+```php
+// Get treatment summary for a patient
+$resumen = [
+    'activos' => Tratamiento::where('id_paciente', $pacienteId)
+        ->where('estatus', 'curso')
+        ->count(),
+    'completados' => Tratamiento::where('id_paciente', $pacienteId)
+        ->where('estatus', 'finalizado')
+        ->count(),
+    'total_invertido' => Tratamiento::where('id_paciente', $pacienteId)
+        ->sum('precio_final')
+];
+```
+
+### Upcoming Treatment Appointments
+
+```php
+// Get next appointments for a treatment
+$proximasCitas = $tratamiento->citas()
+    ->where('fecha', '>=', now())
+    ->orderBy('fecha', 'asc')
+    ->orderBy('hora', 'asc')
+    ->with('servicio')
+    ->get();
+```
+
+## Model Definition
+
+Location: `app/Models/Tratamiento.php`
+
+```php
+protected $fillable = [
+    'id_paciente',
+    'id_usuario',
+    'id_clinica',
+    'id_cat_tratamientos',
+    'diagnostico_inicial',
+    'precio_final',
+    'fecha_inicio',
+    'fecha_fin',
+    'estatus'
+];
+```
+
+## Database Constraints
+
+- Foreign key cascade delete on `id_paciente`, `id_usuario`, `id_clinica`, and `id_cat_tratamientos`
+- Default status is `curso` (in progress)

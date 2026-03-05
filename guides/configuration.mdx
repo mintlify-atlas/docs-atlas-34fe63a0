@@ -1,0 +1,372 @@
+---
+title: Configuration
+description: Configure your DentControl application environment and settings
+---
+
+# Configuration
+
+DentControl uses Laravel's robust configuration system to manage application settings. This guide covers environment configuration, database setup, and service configuration.
+
+## Environment Variables
+
+DentControl stores sensitive configuration in the `.env` file at the root of your project.
+
+<Steps>
+  <Step title="Copy the example file">
+    If you don't have a `.env` file yet, copy the example:
+    
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+
+  <Step title="Generate application key">
+    Generate a secure application key:
+    
+    ```bash
+    php artisan key:generate
+    ```
+    
+    This sets the `APP_KEY` variable, which is used for encryption.
+  </Step>
+
+  <Step title="Configure your environment">
+    Edit the `.env` file with your application-specific settings.
+  </Step>
+</Steps>
+
+## Core Application Settings
+
+<CodeGroup>
+```env Basic Settings
+APP_NAME=DentControl
+APP_ENV=production
+APP_KEY=base64:your-generated-key-here
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+```
+
+```env Localization
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+```
+
+```env Security
+BCRYPT_ROUNDS=12
+```
+</CodeGroup>
+
+<Warning>
+  **Never set `APP_DEBUG=true` in production!** This exposes sensitive information about your application.
+</Warning>
+
+### Configuration Options
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `APP_NAME` | Application name displayed throughout the app | Laravel |
+| `APP_ENV` | Environment (local, staging, production) | local |
+| `APP_DEBUG` | Enable debug mode (only for development) | true |
+| `APP_URL` | Base URL of your application | http://localhost |
+| `BCRYPT_ROUNDS` | Password hashing rounds (higher = more secure) | 12 |
+
+## Database Configuration
+
+DentControl supports multiple database systems. By default, it uses SQLite for easy setup.
+
+### SQLite (Default)
+
+<CodeGroup>
+```env SQLite Configuration
+DB_CONNECTION=sqlite
+# No other DB variables needed
+```
+
+```bash Create SQLite Database
+touch database/database.sqlite
+```
+</CodeGroup>
+
+<Note>
+  SQLite is perfect for development and small deployments. No additional database server required!
+</Note>
+
+### MySQL Configuration
+
+```env MySQL
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=dentcontrol
+DB_USERNAME=your_username
+DB_PASSWORD=your_secure_password
+```
+
+### PostgreSQL Configuration
+
+```env PostgreSQL
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=dentcontrol
+DB_USERNAME=your_username
+DB_PASSWORD=your_secure_password
+```
+
+## Session Configuration
+
+DentControl stores sessions in the database for better scalability.
+
+```env Session Settings
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+```
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `SESSION_DRIVER` | Where to store sessions (database, file, redis) | database |
+| `SESSION_LIFETIME` | Session lifetime in minutes | 120 |
+| `SESSION_ENCRYPT` | Encrypt session data | false |
+
+<Note>
+  Using `database` as the session driver requires running migrations to create the `sessions` table.
+</Note>
+
+## Cache Configuration
+
+Caching improves application performance by storing frequently accessed data.
+
+```env Cache Settings
+CACHE_STORE=database
+# CACHE_PREFIX=
+```
+
+### Available Cache Drivers
+
+- **database** - Store cache in database (default)
+- **file** - Store cache in filesystem
+- **redis** - Use Redis for high-performance caching
+- **memcached** - Use Memcached for distributed caching
+
+### Redis Configuration (Optional)
+
+If using Redis for caching or queues:
+
+```env Redis
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+
+## Queue Configuration
+
+Queues allow you to defer time-consuming tasks for better performance.
+
+```env Queue Settings
+QUEUE_CONNECTION=database
+```
+
+### Available Queue Drivers
+
+- **database** - Store jobs in database (default, no extra setup)
+- **redis** - Use Redis for faster queue processing
+- **sync** - Execute jobs immediately (for development/testing)
+
+<Note>
+  To process queued jobs, you need to run the queue worker:
+  
+  ```bash
+  php artisan queue:work
+  ```
+</Note>
+
+## Mail Configuration
+
+Configure email sending for notifications and password resets.
+
+<CodeGroup>
+```env Development (Log)
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+```env SMTP Server
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_username
+MAIL_PASSWORD=your_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="noreply@dentcontrol.com"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+```env Gmail Example
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="your-email@gmail.com"
+MAIL_FROM_NAME="DentControl"
+```
+</CodeGroup>
+
+<Warning>
+  For Gmail, you need to use an [App Password](https://support.google.com/accounts/answer/185833), not your regular Gmail password.
+</Warning>
+
+## Filesystem Configuration
+
+Configure where uploaded files (like clinic logos) are stored.
+
+```env Filesystem
+FILESYSTEM_DISK=local
+```
+
+### Available Disks
+
+- **local** - Store files in `storage/app`
+- **public** - Store files in `storage/app/public` (accessible via public URL)
+- **s3** - Store files on Amazon S3
+
+### Amazon S3 Configuration (Optional)
+
+```env AWS S3
+FILESYSTEM_DISK=s3
+AWS_ACCESS_KEY_ID=your-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=your-bucket-name
+AWS_USE_PATH_STYLE_ENDPOINT=false
+```
+
+## Logging Configuration
+
+Configure how application logs are stored.
+
+```env Logging
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+```
+
+### Log Levels
+
+- **debug** - Detailed information for debugging
+- **info** - Interesting events
+- **warning** - Exceptional occurrences that are not errors
+- **error** - Runtime errors
+
+<Note>
+  In production, set `LOG_LEVEL=error` to reduce log file size.
+</Note>
+
+## Configuration Files
+
+Laravel configuration files are located in the `config/` directory:
+
+| File | Purpose |
+|------|----------|
+| `app.php` | Core application settings |
+| `auth.php` | Authentication configuration |
+| `database.php` | Database connections |
+| `mail.php` | Email configuration |
+| `cache.php` | Cache stores |
+| `queue.php` | Queue connections |
+| `session.php` | Session configuration |
+| `filesystems.php` | File storage |
+| `logging.php` | Log channels |
+
+<Warning>
+  **Don't modify config files directly in production!** Use environment variables in `.env` instead.
+</Warning>
+
+## Caching Configuration
+
+For better performance in production, cache your configuration:
+
+```bash
+php artisan config:cache
+```
+
+This compiles all configuration files into a single cached file.
+
+<Note>
+  After caching, changes to `.env` won't take effect until you run `php artisan config:clear`.
+</Note>
+
+## Troubleshooting
+
+<Accordion title="Config changes not taking effect">
+  If your configuration changes aren't working:
+  
+  1. Clear the config cache:
+     ```bash
+     php artisan config:clear
+     ```
+  
+  2. Clear all caches:
+     ```bash
+     php artisan cache:clear
+     php artisan view:clear
+     php artisan route:clear
+     ```
+  
+  3. Restart your web server or queue workers
+</Accordion>
+
+<Accordion title="Database connection errors">
+  **For SQLite:**
+  - Ensure `database/database.sqlite` exists
+  - Check file permissions (must be writable)
+  
+  **For MySQL/PostgreSQL:**
+  - Verify database server is running
+  - Check credentials in `.env`
+  - Ensure database exists: `CREATE DATABASE dentcontrol;`
+  - Test connection manually
+</Accordion>
+
+<Accordion title="Mail sending fails">
+  1. Check your SMTP credentials are correct
+  2. Verify firewall allows outbound connections on mail port
+  3. Test with `log` driver first to debug:
+     ```env
+     MAIL_MAILER=log
+     ```
+  4. Check logs in `storage/logs/laravel.log`
+</Accordion>
+
+<Accordion title="Permission denied errors">
+  Ensure Laravel can write to these directories:
+  
+  ```bash
+  chmod -R 775 storage bootstrap/cache
+  chown -R www-data:www-data storage bootstrap/cache
+  ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/guides/database-setup">
+    Run migrations and seed your database
+  </Card>
+  
+  <Card title="User Management" icon="users" href="/guides/user-management">
+    Create users and assign roles
+  </Card>
+  
+  <Card title="Deployment" icon="rocket" href="/guides/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>

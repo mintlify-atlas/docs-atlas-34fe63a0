@@ -1,0 +1,249 @@
+---
+title: "Cita Model"
+description: "Appointment scheduling and management model"
+---
+
+## Overview
+
+The `Cita` model represents scheduled appointments in the DentControl system. It manages the relationship between patients, dentists, services, and treatments, ensuring proper scheduling and preventing conflicts.
+
+## Table Schema
+
+<ParamField path="table" type="string" default="citas">
+  Database table name
+</ParamField>
+
+<ParamField path="primaryKey" type="integer" default="id_cita">
+  Primary key column (auto-incrementing)
+</ParamField>
+
+<ParamField path="timestamps" type="boolean" default="true">
+  Includes `created_at` and `updated_at` columns
+</ParamField>
+
+## Fields
+
+### Relationships
+
+<ParamField path="id_paciente" type="integer" required>
+  Foreign key to the patient
+</ParamField>
+
+<ParamField path="id_usuario" type="integer" required>
+  Foreign key to the dentist/user providing the service
+</ParamField>
+
+<ParamField path="id_cat_servicio" type="integer" required>
+  Foreign key to the service catalog entry
+</ParamField>
+
+<ParamField path="id_tratamiento" type="integer">
+  Optional foreign key to an existing treatment plan
+</ParamField>
+
+### Scheduling
+
+<ParamField path="fecha" type="date" required>
+  Appointment date (format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="hora" type="time" required>
+  Appointment time (format: HH:MM:SS)
+</ParamField>
+
+### Clinical Information
+
+<ParamField path="motivo_consulta" type="string">
+  Reason for consultation/visit
+</ParamField>
+
+## Unique Constraints
+
+The model enforces a unique constraint on the combination of:
+- `id_usuario` (dentist)
+- `fecha` (date)
+- `hora` (time)
+
+This prevents double-booking of dentists.
+
+## Relationships
+
+### paciente
+
+**Type:** `belongsTo`
+
+An appointment belongs to one patient.
+
+```php
+$cita->paciente; // Paciente model instance
+```
+
+**Foreign Key:** `id_paciente`
+
+### usuario
+
+**Type:** `belongsTo`
+
+An appointment is assigned to one dentist/user.
+
+```php
+$cita->usuario; // Usuario model instance
+```
+
+**Foreign Key:** `id_usuario`
+
+### tratamiento
+
+**Type:** `belongsTo`
+
+An appointment may be part of a treatment plan.
+
+```php
+$cita->tratamiento; // Tratamiento model instance or null
+```
+
+**Foreign Key:** `id_tratamiento`
+
+### servicio
+
+**Type:** `belongsTo`
+
+An appointment is for a specific service.
+
+```php
+$cita->servicio; // CatalogoServicios model instance
+```
+
+**Foreign Key:** `id_cat_servicio`
+
+## Example Usage
+
+### Creating a New Appointment
+
+```php
+use App\Models\Cita;
+
+$cita = Cita::create([
+    'id_paciente' => 1,
+    'id_usuario' => 5,
+    'id_cat_servicio' => 3,
+    'id_tratamiento' => 10,
+    'fecha' => '2026-03-15',
+    'hora' => '10:00:00',
+    'motivo_consulta' => 'Revisión de ortodoncia'
+]);
+```
+
+### Retrieving Appointment with Relationships
+
+```php
+// Get appointment with all related data
+$cita = Cita::with(['paciente', 'usuario', 'servicio', 'tratamiento'])
+    ->find($id);
+
+// Get full patient name and dentist name
+$nombrePaciente = $cita->paciente->nombre . ' ' . 
+                  $cita->paciente->apellido_paterno;
+$nombreDentista = $cita->usuario->nombre . ' ' . 
+                  $cita->usuario->apellido_paterno;
+```
+
+### Querying Appointments
+
+```php
+// Get appointments for a specific date
+$citasDelDia = Cita::where('fecha', '2026-03-15')
+    ->with(['paciente', 'usuario'])
+    ->orderBy('hora', 'asc')
+    ->get();
+
+// Get upcoming appointments for a patient
+$proximasCitas = Cita::where('id_paciente', $pacienteId)
+    ->where('fecha', '>=', now())
+    ->orderBy('fecha', 'asc')
+    ->orderBy('hora', 'asc')
+    ->get();
+
+// Get dentist's schedule for the week
+$semana = Cita::where('id_usuario', $usuarioId)
+    ->whereBetween('fecha', [$startDate, $endDate])
+    ->orderBy('fecha', 'asc')
+    ->orderBy('hora', 'asc')
+    ->get();
+```
+
+### Checking Availability
+
+```php
+// Check if dentist is available at specific time
+$conflict = Cita::where('id_usuario', $usuarioId)
+    ->where('fecha', $fecha)
+    ->where('hora', $hora)
+    ->exists();
+
+if ($conflict) {
+    // Time slot is not available
+}
+```
+
+### Updating an Appointment
+
+```php
+$cita = Cita::find($id);
+$cita->update([
+    'fecha' => '2026-03-20',
+    'hora' => '14:00:00',
+    'motivo_consulta' => 'Control post-tratamiento'
+]);
+```
+
+### Appointments by Treatment
+
+```php
+// Get all appointments for a specific treatment
+$citasTratamiento = Cita::where('id_tratamiento', $tratamientoId)
+    ->with(['servicio'])
+    ->orderBy('fecha', 'asc')
+    ->get();
+```
+
+## Calendar Integration Example
+
+```php
+// Get monthly calendar view
+public function getCalendarData($year, $month, $usuarioId)
+{
+    $startDate = Carbon::create($year, $month, 1);
+    $endDate = $startDate->copy()->endOfMonth();
+    
+    return Cita::where('id_usuario', $usuarioId)
+        ->whereBetween('fecha', [$startDate, $endDate])
+        ->with(['paciente', 'servicio'])
+        ->get()
+        ->groupBy('fecha')
+        ->map(function ($citas) {
+            return $citas->sortBy('hora');
+        });
+}
+```
+
+## Model Definition
+
+Location: `app/Models/Cita.php`
+
+```php
+protected $fillable = [
+    'id_paciente',
+    'id_usuario',
+    'id_cat_servicio',
+    'id_tratamiento',
+    'fecha',
+    'hora',
+    'motivo_consulta'
+];
+```
+
+## Database Constraints
+
+- Foreign key cascade delete on `id_paciente`, `id_usuario`, `id_tratamiento`, `id_cat_servicio`, and `id_clinica`
+- Unique constraint on `(id_usuario, fecha, hora)` combination

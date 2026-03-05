@@ -1,0 +1,339 @@
+---
+title: 'Clinic Management'
+description: 'Multi-tenant clinic management system with comprehensive administrative controls'
+icon: 'hospital'
+---
+
+## Overview
+
+DentControl implements a robust multi-tenant architecture where each clinic operates as an independent tenant with its own data, users, and patients. The system ensures complete data isolation while providing centralized management capabilities.
+
+<CardGroup cols={2}>
+  <Card title="Multi-Tenant" icon="building">
+    Complete isolation between clinics with dedicated data spaces
+  </Card>
+  <Card title="Centralized Admin" icon="user-shield">
+    Manage multiple clinics from a single administrative interface
+  </Card>
+  <Card title="Status Control" icon="toggle-on">
+    Activate or deactivate clinics without data loss
+  </Card>
+  <Card title="Custom Branding" icon="image">
+    Upload custom logos for each clinic
+  </Card>
+</CardGroup>
+
+## Data Model
+
+The `Clinica` model is the core tenant entity in the system. Each clinic has complete ownership of its associated data.
+
+### Database Schema
+
+```php
+Schema::create('clinica', function (Blueprint $table) {
+    $table->id('id_clinica');
+    
+    $table->string('nombre');
+    $table->string('rfc')->nullable()->unique();
+    
+    // Address fields
+    $table->string('calle')->nullable();
+    $table->string('numero_ext')->nullable();
+    $table->string('numero_int')->nullable();
+    $table->string('colonia')->nullable();
+    $table->string('ciudad')->nullable();
+    $table->string('estado')->nullable();
+    $table->string('codigo_postal')->nullable();
+    
+    $table->string('telefono')->nullable();
+    $table->string('logo_ruta')->nullable();
+    
+    $table->enum('estatus', ['activo', 'baja'])->default('activo');
+    
+    $table->timestamps();
+});
+```
+
+### Model Attributes
+
+See the complete model definition at `~/workspace/source/app/Models/Clinica.php:17-30`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id_clinica` | bigint | Primary key |
+| `nombre` | string(50) | Clinic name (alphanumeric, supports accents) |
+| `rfc` | string(12-13) | Mexican tax ID (unique, validated format) |
+| `calle` | string | Street address |
+| `numero_ext` | string(10) | External number |
+| `numero_int` | string(10) | Internal number |
+| `colonia` | string | Neighborhood/colony |
+| `ciudad` | string | City |
+| `estado` | string | State |
+| `codigo_postal` | string(5) | Postal code |
+| `telefono` | string(10) | 10-digit phone number (unique) |
+| `logo_ruta` | string | Path to clinic logo image |
+| `estatus` | enum | Status: `activo` or `baja` |
+
+<Note>
+The RFC (Registro Federal de Contribuyentes) must follow the Mexican tax ID format: 3-4 uppercase letters followed by 6 digits and 3 alphanumeric characters (e.g., ABCD123456EF7).
+</Note>
+
+## Relationships
+
+The Clinica model establishes one-to-many relationships with dependent entities:
+
+```php
+// One clinic has many users
+public function usuarios()
+{
+    return $this->hasMany(Usuario::class, 'id_clinica', 'id_clinica');
+}
+
+// One clinic has many patients
+public function pacientes()
+{
+    return $this->hasMany(Paciente::class, 'id_clinica', 'id_clinica');
+}
+```
+
+### Entity Relationships
+
+<CardGroup cols={2}>
+  <Card title="Usuarios (Users)" icon="users">
+    All staff members (dentists, admins) belong to a specific clinic
+  </Card>
+  <Card title="Pacientes (Patients)" icon="user">
+    Patient records are scoped to their clinic
+  </Card>
+  <Card title="Tratamientos" icon="tooth">
+    Treatments are linked to clinics via patients
+  </Card>
+  <Card title="Catálogos" icon="list">
+    Service and treatment catalogs are clinic-specific
+  </Card>
+</CardGroup>
+
+## Creating a Clinic
+
+The clinic creation process includes comprehensive validation to ensure data integrity.
+
+### Controller Implementation
+
+See `~/workspace/source/app/Http/Controllers/Admin/ClinicaController.php:21-56`
+
+```php
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'nombre' => 'required|string|max:50|regex:/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\s&\'\-]+$/u',
+        'rfc' => 'required|string|uppercase|regex:/^[A-Z&Ñ]{3,4}[0-9]{6}[A-Z0-9]{3}$/|min:12|max:13|unique:clinica,rfc',
+        'calle' => 'nullable|string|max:255',
+        'numero_ext' => 'nullable|string|max:10',
+        'numero_int' => 'nullable|string|max:10',
+        'colonia' => 'nullable|string|max:255',
+        'codigo_postal' => 'required|digits:5',
+        'ciudad' => 'required|string',
+        'estado' => 'required|string',
+        'telefono' => 'required|numeric|digits:10|unique:clinica,telefono',
+        'logo_ruta' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+    ]);
+
+    if ($request->hasFile('logo_ruta')) {
+        $image = $request->file('logo_ruta');
+        $name = 'logo_' . time() . '.' . $image->getClientOriginalExtension();
+        $image->move(public_path('images/logos'), $name);
+        $validated['logo_ruta'] = 'images/logos/' . $name;
+    }
+
+    Clinica::create($validated);
+
+    return redirect()->route('clinicas.index')
+        ->with('success', 'Clínica registrada correctamente.');
+}
+```
+
+### Validation Rules
+
+<Accordion title="Name Validation">
+  - Maximum 50 characters
+  - Allows: letters (including Spanish accents), numbers, spaces, ampersand (&), apostrophe ('), hyphen (-)
+  - Pattern: `/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\s&'\-]+$/u`
+</Accordion>
+
+<Accordion title="RFC Validation">
+  - Must be uppercase
+  - Format: 3-4 letters + 6 digits + 3 alphanumeric characters
+  - Length: 12-13 characters
+  - Must be unique across all clinics
+</Accordion>
+
+<Accordion title="Phone Validation">
+  - Exactly 10 numeric digits
+  - Must be unique across all clinics
+</Accordion>
+
+<Accordion title="Logo Upload">
+  - Accepts: JPEG, PNG, JPG formats
+  - Maximum size: 2MB (2048KB)
+  - Stored in `public/images/logos/` with timestamp prefix
+</Accordion>
+
+## Updating a Clinic
+
+The update process maintains referential integrity while allowing modifications to clinic information.
+
+### Update Method
+
+See `~/workspace/source/app/Http/Controllers/Admin/ClinicaController.php:66-117`
+
+```php
+public function update(Request $request, $id)
+{
+    $clinica = Clinica::findOrFail($id);
+
+    $validator = Validator::make($request->all(), [
+        'rfc' => 'required|string|min:12|max:13|uppercase|regex:/^[A-Z&Ñ]{3,4}[0-9]{6}[A-Z0-9]{3}$/|unique:clinica,rfc,' . $id . ',id_clinica',
+        'telefono' => 'required|numeric|digits:10|unique:clinica,telefono,' . $id . ',id_clinica',
+        'logo_ruta' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+        // ... other validations
+    ]);
+
+    if ($validator->fails()) {
+        return redirect()->back()
+            ->withErrors($validator)
+            ->withInput()
+            ->with('editing_clinic_id', $id);
+    }
+
+    // Handle logo replacement
+    if ($request->hasFile('logo_ruta')) {
+        if ($clinica->logo_ruta && File::exists(public_path($clinica->logo_ruta))) {
+            File::delete(public_path($clinica->logo_ruta));
+        }
+
+        $image = $request->file('logo_ruta');
+        $name = 'logo_' . time() . '.' . $image->getClientOriginalExtension();
+        $image->move(public_path('images/logos'), $name);
+        $validated['logo_ruta'] = 'images/logos/' . $name;
+    }
+
+    $clinica->update($validated);
+
+    return redirect()->route('clinicas.index')
+        ->with('success', 'Clínica actualizada correctamente.');
+}
+```
+
+<Note>
+When updating a clinic with a new logo, the system automatically deletes the old logo file to prevent storage bloat.
+</Note>
+
+## Status Management
+
+Clinics can be toggled between active and inactive states without deleting any data.
+
+### Toggle Status Method
+
+See `~/workspace/source/app/Http/Controllers/Admin/ClinicaController.php:120-132`
+
+```php
+public function toggleStatus($id)
+{
+    $clinica = Clinica::findOrFail($id);
+    
+    $nuevoEstado = ($clinica->estatus == 'activo') ? 'baja' : 'activo';
+    
+    $clinica->update(['estatus' => $nuevoEstado]);
+
+    $mensaje = ($nuevoEstado == 'activo') 
+        ? 'Clínica reactivada con éxito.' 
+        : 'Clínica dada de baja.';
+    
+    return redirect()->back()->with('success', $mensaje);
+}
+```
+
+### Status States
+
+<CardGroup cols={2}>
+  <Card title="Activo" icon="check-circle" color="green">
+    Clinic is operational and accessible to users. All features enabled.
+  </Card>
+  <Card title="Baja" icon="ban" color="red">
+    Clinic is deactivated. Data preserved but access restricted.
+  </Card>
+</CardGroup>
+
+<Warning>
+Deactivating a clinic (status = 'baja') should prevent users from that clinic from logging in, though the specific authentication logic would be implemented in the login controller.
+</Warning>
+
+## Listing Clinics
+
+Clinics are displayed in reverse chronological order (newest first).
+
+```php
+public function index()
+{
+    $clinicas = Clinica::orderBy('created_at', 'desc')->get();
+    return view('admin.clinicas.index', compact('clinicas'));
+}
+```
+
+## Multi-Tenant Architecture
+
+DentControl's multi-tenant design ensures:
+
+1. **Data Isolation**: Each clinic only sees its own patients, appointments, and treatments
+2. **Cascade Deletion**: When a clinic is deleted, all associated records are removed
+3. **Unique Identifiers**: RFC and phone numbers are unique across the entire system
+4. **Scoped Queries**: All queries filter by `id_clinica` to prevent data leakage
+
+### Cascade Relationships
+
+When a clinic is deleted from the database (hard delete), the following entities are automatically removed:
+
+- All patients (`paciente`)
+- All users/staff (`usuario`)
+- All appointments (`citas`)
+- All treatments (`tratamiento`)
+- Service catalogs (`catalogo_servicios`)
+- Treatment catalogs (`catalogo_tratamientos`)
+
+<Warning>
+Hard deletion of a clinic is destructive. Consider using the status toggle (`baja`) instead to preserve historical data.
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Validate RFC Format">
+    The RFC is a critical identifier in Mexico. Use the provided regex pattern to ensure compliance with SAT (tax authority) requirements.
+  </Accordion>
+  
+  <Accordion title="Unique Phone Numbers">
+    Phone numbers must be unique across all clinics to prevent confusion and enable global patient search by phone.
+  </Accordion>
+  
+  <Accordion title="Logo File Management">
+    Always delete old logos when updating to prevent disk space waste. Logos are stored in `public/images/logos/` with timestamp prefixes.
+  </Accordion>
+  
+  <Accordion title="Use Status Toggle Over Deletion">
+    Prefer setting `estatus = 'baja'` over hard deleting clinics to maintain historical records and referential integrity.
+  </Accordion>
+</AccordionGroup>
+
+## Related Features
+
+<CardGroup cols={3}>
+  <Card title="Patient Management" icon="user" href="/features/patient-management">
+    Manage patients within clinics
+  </Card>
+  <Card title="Appointments" icon="calendar" href="/features/appointments">
+    Schedule appointments for clinic patients
+  </Card>
+  <Card title="Treatments" icon="tooth" href="/features/treatments">
+    Track treatments within clinics
+  </Card>
+</CardGroup>

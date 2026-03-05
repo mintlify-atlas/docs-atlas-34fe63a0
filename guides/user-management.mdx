@@ -1,0 +1,565 @@
+---
+title: User Management
+description: Manage users, roles, and permissions in DentControl
+---
+
+# User Management
+
+DentControl's user management system allows you to create and manage users with different roles across multiple dental clinics. Users are associated with specific clinics and have role-based permissions.
+
+## User Model Overview
+
+The `Usuario` model (`app/Models/Usuario.php`) extends Laravel's authentication system with custom fields for dental clinic management.
+
+### User Structure
+
+```php Key Fields
+protected $fillable = [
+    'id_clinica',          // Associated clinic
+    'nombre',              // First name
+    'apellido_paterno',    // Paternal surname
+    'apellido_materno',    // Maternal surname (optional)
+    'cedula_profesional',  // Professional license (for dentists)
+    'nom_usuario',         // Username (unique)
+    'password',            // Hashed password
+    'rol',                 // User role
+    'estatus'              // Active/inactive status
+];
+```
+
+## User Roles
+
+DentControl supports three user roles:
+
+| Role | Description | Permissions |
+|------|-------------|-------------|
+| **superadmin** | System administrator | Full access to all clinics and system settings |
+| **dentista** | Dentist/Doctor | Manage patients, appointments, treatments in their clinic |
+| **asistente** | Assistant | Limited access to support dentists |
+
+<Note>
+  Roles are defined as enum values in the database: `superadmin`, `dentista`, `asistente`.
+</Note>
+
+## Creating Users
+
+Users can be created through the admin interface or programmatically.
+
+### Through Admin Interface
+
+The `UsuarioController` (`app/Http/Controllers/Admin/UsuarioController.php`) handles user creation.
+
+<Steps>
+  <Step title="Access user management">
+    Navigate to the admin panel and select "Usuarios" (Users).
+  </Step>
+
+  <Step title="Click create user">
+    Click the "Nuevo Usuario" (New User) button to open the creation form.
+  </Step>
+
+  <Step title="Fill user details">
+    Provide the required information:
+    
+    - **Clínica**: Select the clinic to associate the user with
+    - **Nombre**: First name (min 3 letters, only letters and spaces)
+    - **Apellido Paterno**: Paternal surname (required)
+    - **Apellido Materno**: Maternal surname (optional)
+    - **Usuario**: Username (4-20 alphanumeric characters, unique)
+    - **Contraseña**: Password (see requirements below)
+    - **Rol**: Select role (dentista or asistente)
+    - **Cédula Profesional**: Professional license (required for dentists, 7-10 digits)
+  </Step>
+
+  <Step title="Submit">
+    Click "Guardar" to create the user.
+  </Step>
+</Steps>
+
+### Password Requirements
+
+DentControl enforces strong password policies:
+
+<CodeGroup>
+```php Validation Rules
+Password::min(8)      // Minimum 8 characters
+    ->letters()       // At least one letter
+    ->mixedCase()     // Both uppercase and lowercase
+    ->numbers()       // At least one number
+```
+
+```text Valid Examples
+Password123
+Secure2024Pass
+Dent!st@456
+```
+</CodeGroup>
+
+<Warning>
+  Passwords are automatically hashed using bcrypt. Never store plain text passwords!
+</Warning>
+
+### Programmatic User Creation
+
+You can create users programmatically using the `Usuario` model:
+
+<CodeGroup>
+```php Create User
+use App\Models\Usuario;
+
+Usuario::create([
+    'id_clinica' => 1,
+    'nombre' => 'Juan',
+    'apellido_paterno' => 'García',
+    'apellido_materno' => 'López',
+    'nom_usuario' => 'jgarcia',
+    'password' => 'SecurePass123', // Automatically hashed
+    'rol' => 'dentista',
+    'cedula_profesional' => '1234567',
+    'estatus' => 'activo'
+]);
+```
+
+```php Create Multiple Users
+$users = [
+    [
+        'id_clinica' => 1,
+        'nombre' => 'María',
+        'apellido_paterno' => 'Rodríguez',
+        'nom_usuario' => 'mrodriguez',
+        'password' => 'Password123',
+        'rol' => 'dentista',
+        'cedula_profesional' => '7654321',
+        'estatus' => 'activo'
+    ],
+    [
+        'id_clinica' => 1,
+        'nombre' => 'Pedro',
+        'apellido_paterno' => 'Martínez',
+        'nom_usuario' => 'pmartinez',
+        'password' => 'Assistant456',
+        'rol' => 'asistente',
+        'estatus' => 'activo'
+    ]
+];
+
+foreach ($users as $userData) {
+    Usuario::create($userData);
+}
+```
+</CodeGroup>
+
+<Note>
+  The `Usuario` model uses the `'password' => 'hashed'` cast, which automatically hashes passwords using bcrypt when saving.
+</Note>
+
+## Assigning Roles
+
+Roles are assigned during user creation and can be updated later.
+
+### Role Assignment Rules
+
+1. **Dentista** role:
+   - Requires `cedula_profesional` (professional license)
+   - Can manage patients and treatments
+   - Creates appointments and clinical notes
+
+2. **Asistente** role:
+   - No professional license required
+   - Supports dentists with administrative tasks
+   - Limited clinical access
+
+3. **Superadmin** role:
+   - Cannot be changed or suspended through the interface
+   - Protected from accidental modifications
+   - Full system access
+
+<Warning>
+  The superadmin role is protected. The controller prevents editing or suspending superadmin users:
+  
+  ```php
+  if ($usuario->rol === 'superadmin') {
+      return redirect()->back()
+          ->with('error', 'El Superadministrador no puede ser suspendido.');
+  }
+  ```
+</Warning>
+
+## Associating Users with Clinics
+
+Every user must be associated with a clinic through the `id_clinica` foreign key.
+
+### Clinic Relationship
+
+```php Usuario Model Relationship
+public function clinica()
+{
+    return $this->belongsTo(Clinica::class, 'id_clinica', 'id_clinica');
+}
+```
+
+### Accessing User's Clinic
+
+<CodeGroup>
+```php Get User's Clinic
+$usuario = Usuario::find(1);
+$clinica = $usuario->clinica;
+
+echo $clinica->nombre; // Clinic name
+```
+
+```php Load Users with Clinic
+$usuarios = Usuario::with('clinica')->get();
+
+foreach ($usuarios as $usuario) {
+    echo "{$usuario->nombre} - {$usuario->clinica->nombre}";
+}
+```
+
+```php Filter Users by Clinic
+$clinicUsers = Usuario::where('id_clinica', 1)
+    ->where('estatus', 'activo')
+    ->get();
+```
+</CodeGroup>
+
+## User Status Management
+
+Users can be activated or deactivated without deleting their records.
+
+### Status Values
+
+- **activo**: User can log in and access the system
+- **baja**: User is suspended and cannot log in
+
+### Toggle User Status
+
+The `toggleStatus` method (`app/Http/Controllers/Admin/UsuarioController.php:91`) handles status changes:
+
+<Steps>
+  <Step title="Find the user">
+    Locate the user in the admin panel user list.
+  </Step>
+
+  <Step title="Click status toggle">
+    Click the status toggle button (usually a switch or button).
+  </Step>
+
+  <Step title="Confirm change">
+    The system will toggle between `activo` and `baja`.
+  </Step>
+</Steps>
+
+<CodeGroup>
+```php Toggle Status Method
+public function toggleStatus($id)
+{
+    $usuario = Usuario::findOrFail($id);
+
+    // Protect superadmin
+    if ($usuario->rol === 'admin') {
+        return redirect()->back()
+            ->with('error', 'El Superadministrador no puede ser suspendido.');
+    }
+    
+    // Toggle status
+    $nuevoEstado = ($usuario->estatus == 'activo') ? 'baja' : 'activo';
+    $usuario->update(['estatus' => $nuevoEstado]);
+
+    $mensaje = ($nuevoEstado == 'activo') 
+        ? "El usuario {$usuario->nom_usuario} ha sido reactivado." 
+        : "El acceso de {$usuario->nom_usuario} ha sido suspendido.";
+    
+    return redirect()->back()->with('success', $mensaje);
+}
+```
+
+```php Programmatic Status Change
+$usuario = Usuario::find(5);
+$usuario->update(['estatus' => 'baja']); // Suspend
+
+$usuario->update(['estatus' => 'activo']); // Reactivate
+```
+</CodeGroup>
+
+## Updating Users
+
+Users can be edited to update their information.
+
+### Editable Fields
+
+- Personal information (name, surnames)
+- Username (must remain unique)
+- Password (optional - only if changing)
+- Role (except for superadmin)
+- Professional license
+- Associated clinic
+
+### Update Process
+
+<Steps>
+  <Step title="Load user data">
+    The `edit` method returns user data as JSON for the edit form:
+    
+    ```php
+    public function edit($id)
+    {
+        $usuario = Usuario::findOrFail($id);
+        return response()->json($usuario);
+    }
+    ```
+  </Step>
+
+  <Step title="Modify fields">
+    Update the desired fields in the edit form.
+  </Step>
+
+  <Step title="Submit changes">
+    The `update` method validates and saves changes:
+    - Validates all fields
+    - Only updates password if provided
+    - Protects superadmin role from changes
+  </Step>
+</Steps>
+
+<CodeGroup>
+```php Update User (Controller)
+public function update(Request $request, $id)
+{
+    $usuario = Usuario::findOrFail($id);
+
+    // Protect superadmin role
+    if ($usuario->rol === 'superadmin') {
+        $request->merge(['rol' => 'superadmin']);
+    }
+    
+    $rules = [
+        'nombre' => 'required|string|min:3|max:255',
+        'apellido_paterno' => 'required|string|min:3|max:255',
+        'nom_usuario' => 'required|unique:usuario,nom_usuario,' . $id . ',id_usuario',
+        'rol' => 'required|in:superadmin,dentista,asistente',
+    ];
+
+    // Only validate password if provided
+    if ($request->filled('password')) {
+        $rules['password'] = Password::min(8)->letters()->mixedCase()->numbers();
+    }
+
+    $validated = $request->validate($rules);
+    
+    // Don't update password if empty
+    if (!$request->filled('password')) {
+        unset($validated['password']);
+    }
+
+    $usuario->update($validated);
+
+    return redirect()->route('usuarios.index')
+        ->with('success', 'Usuario actualizado correctamente.');
+}
+```
+
+```php Update User (Direct)
+$usuario = Usuario::find(3);
+
+$usuario->update([
+    'nombre' => 'Carlos',
+    'apellido_paterno' => 'Hernández',
+    'cedula_profesional' => '9876543'
+]);
+
+// Update password separately
+$usuario->update([
+    'password' => 'NewSecurePass123' // Automatically hashed
+]);
+```
+</CodeGroup>
+
+<Warning>
+  When updating a user, the password field is optional. If left empty, the password won't be changed.
+</Warning>
+
+## User Relationships
+
+The `Usuario` model has several important relationships:
+
+### Clinic Relationship
+
+```php
+public function clinica()
+{
+    return $this->belongsTo(Clinica::class, 'id_clinica', 'id_clinica');
+}
+```
+
+### Appointments (Citas)
+
+```php
+public function citas()
+{
+    return $this->hasMany(Cita::class, 'id_usuario', 'id_usuario');
+}
+```
+
+### Clinical Notes
+
+```php
+public function notasEvolucion()
+{
+    return $this->hasMany(NotasEvolucion::class, 'id_usuario', 'id_usuario');
+}
+```
+
+### Using Relationships
+
+<CodeGroup>
+```php Get User's Appointments
+$usuario = Usuario::find(1);
+$citas = $usuario->citas;
+
+foreach ($citas as $cita) {
+    echo "Cita: {$cita->fecha} - {$cita->hora}";
+}
+```
+
+```php Get User's Clinical Notes
+$notas = $usuario->notasEvolucion;
+
+foreach ($notas as $nota) {
+    echo $nota->nota;
+}
+```
+
+```php Count User's Activities
+$usuario = Usuario::withCount(['citas', 'notasEvolucion'])->find(1);
+
+echo "Citas: {$usuario->citas_count}";
+echo "Notas: {$usuario->notas_evolucion_count}";
+```
+</CodeGroup>
+
+## Authentication
+
+The `Usuario` model extends `Authenticatable` for Laravel's authentication system.
+
+### Custom Authentication Methods
+
+```php Usuario Model
+public function getAuthPassword()
+{
+    return $this->password; // Use custom password column
+}
+
+public function getAuthIdentifierName()
+{
+    return 'id_usuario'; // Use custom ID column
+}
+```
+
+### Login Example
+
+```php
+use Illuminate\Support\Facades\Auth;
+
+$credentials = [
+    'nom_usuario' => 'jgarcia',
+    'password' => 'SecurePass123'
+];
+
+if (Auth::attempt($credentials)) {
+    // Authentication successful
+    $user = Auth::user();
+    return redirect()->intended('dashboard');
+}
+```
+
+## Troubleshooting
+
+<Accordion title="Cannot create user - validation errors">
+  Common validation issues:
+  
+  1. **Username already exists**: Each username must be unique
+  2. **Password too weak**: Must meet all requirements (8+ chars, mixed case, numbers)
+  3. **Name contains invalid characters**: Only letters and spaces allowed
+  4. **Missing professional license**: Required for dentista role
+  
+  Check `storage/logs/laravel.log` for detailed validation errors.
+</Accordion>
+
+<Accordion title="User cannot log in">
+  Verify:
+  
+  1. **User status is active**:
+     ```php
+     $usuario = Usuario::where('nom_usuario', 'username')->first();
+     echo $usuario->estatus; // Should be 'activo'
+     ```
+  
+  2. **Password is correct**: Test password hash:
+     ```php
+     use Illuminate\Support\Facades\Hash;
+     
+     $usuario = Usuario::where('nom_usuario', 'username')->first();
+     if (Hash::check('entered_password', $usuario->password)) {
+         echo "Password correct";
+     }
+     ```
+  
+  3. **User exists in database**:
+     ```bash
+     php artisan tinker
+     Usuario::where('nom_usuario', 'username')->first();
+     ```
+</Accordion>
+
+<Accordion title="Password not hashing automatically">
+  Ensure the `Usuario` model has the password cast:
+  
+  ```php
+  protected $casts = [
+      'password' => 'hashed',
+  ];
+  ```
+  
+  This cast automatically hashes passwords when saving.
+</Accordion>
+
+<Accordion title="Cannot edit or suspend superadmin">
+  This is intentional! The system protects superadmin users from accidental changes.
+  
+  To modify a superadmin:
+  1. Access the database directly
+  2. Or remove the protection check in the controller (not recommended)
+</Accordion>
+
+<Accordion title="User associated with wrong clinic">
+  Update the clinic association:
+  
+  ```php
+  $usuario = Usuario::find(5);
+  $usuario->update(['id_clinica' => 2]); // Move to clinic 2
+  ```
+  
+  Or through the admin interface by editing the user.
+</Accordion>
+
+## Best Practices
+
+1. **Always use strong passwords**: Enforce the built-in password requirements
+2. **Regularly audit user access**: Review active users and their roles
+3. **Use status toggle instead of deletion**: Preserve user history by deactivating
+4. **Associate users correctly**: Ensure users belong to the right clinic
+5. **Protect superadmin accounts**: Never expose superadmin credentials
+6. **Log user actions**: Track important user activities for security
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Configure your application environment
+  </Card>
+  
+  <Card title="Database Setup" icon="database" href="/guides/database-setup">
+    Learn about database structure and migrations
+  </Card>
+</CardGroup>

@@ -1,0 +1,882 @@
+---
+title: Deployment
+description: Deploy DentControl to production servers
+---
+
+# Production Deployment
+
+This guide covers deploying DentControl to a production environment, including server setup, optimization, and maintenance.
+
+## Prerequisites
+
+Before deploying, ensure your server meets these requirements:
+
+<CardGroup cols={2}>
+  <Card title="Server Requirements" icon="server">
+    - PHP 8.2 or higher
+    - Composer 2.x
+    - Node.js 18+ and npm
+    - Web server (Apache/Nginx)
+    - Database server (MySQL/PostgreSQL)
+  </Card>
+  
+  <Card title="PHP Extensions" icon="puzzle-piece">
+    - OpenSSL
+    - PDO
+    - Mbstring
+    - Tokenizer
+    - XML
+    - Ctype
+    - JSON
+    - BCMath
+  </Card>
+</CardGroup>
+
+### Verify PHP Version
+
+```bash
+php -v
+php -m  # Check installed extensions
+```
+
+## Deployment Process
+
+Follow these steps to deploy DentControl to production.
+
+### 1. Clone and Setup
+
+<Steps>
+  <Step title="Clone repository">
+    Clone your DentControl repository to the server:
+    
+    ```bash
+    cd /var/www
+    git clone https://github.com/your-username/dentcontrol.git
+    cd dentcontrol
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install PHP and JavaScript dependencies:
+    
+    ```bash
+    composer install --optimize-autoloader --no-dev
+    npm install
+    ```
+    
+    <Note>
+      The `--optimize-autoloader` flag improves performance by generating optimized class maps.
+      
+      The `--no-dev` flag excludes development dependencies.
+    </Note>
+  </Step>
+
+  <Step title="Configure environment">
+    Create and configure your `.env` file:
+    
+    ```bash
+    cp .env.example .env
+    nano .env
+    ```
+    
+    Set production values:
+    ```env
+    APP_ENV=production
+    APP_DEBUG=false
+    APP_URL=https://your-domain.com
+    
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_DATABASE=dentcontrol
+    DB_USERNAME=your_user
+    DB_PASSWORD=secure_password
+    ```
+  </Step>
+
+  <Step title="Generate application key">
+    Generate a secure application key:
+    
+    ```bash
+    php artisan key:generate
+    ```
+  </Step>
+</Steps>
+
+### 2. Database Setup
+
+<Steps>
+  <Step title="Create production database">
+    <CodeGroup>
+    ```sql MySQL
+    CREATE DATABASE dentcontrol CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER 'dentcontrol'@'localhost' IDENTIFIED BY 'secure_password';
+    GRANT ALL PRIVILEGES ON dentcontrol.* TO 'dentcontrol'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+    
+    ```sql PostgreSQL
+    CREATE DATABASE dentcontrol;
+    CREATE USER dentcontrol WITH PASSWORD 'secure_password';
+    GRANT ALL PRIVILEGES ON DATABASE dentcontrol TO dentcontrol;
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Run migrations">
+    Execute database migrations:
+    
+    ```bash
+    php artisan migrate --force
+    ```
+    
+    <Warning>
+      Production migrations require the `--force` flag.
+    </Warning>
+  </Step>
+
+  <Step title="Seed initial data (optional)">
+    If you have seeders for initial data:
+    
+    ```bash
+    php artisan db:seed --force
+    ```
+  </Step>
+</Steps>
+
+### 3. Build Frontend Assets
+
+Compile and optimize frontend assets for production:
+
+```bash
+npm run build
+```
+
+This command:
+- Compiles JavaScript and CSS
+- Minifies assets
+- Generates versioned filenames for cache busting
+- Places files in `public/build/`
+
+<Note>
+  The build process uses Vite. The production build is optimized for performance with minification and tree-shaking.
+</Note>
+
+### 4. Set Permissions
+
+Set correct file permissions for Laravel:
+
+<CodeGroup>
+```bash Using www-data User
+sudo chown -R www-data:www-data /var/www/dentcontrol
+sudo chmod -R 755 /var/www/dentcontrol
+sudo chmod -R 775 /var/www/dentcontrol/storage
+sudo chmod -R 775 /var/www/dentcontrol/bootstrap/cache
+```
+
+```bash Using nginx User
+sudo chown -R nginx:nginx /var/www/dentcontrol
+sudo chmod -R 755 /var/www/dentcontrol
+sudo chmod -R 775 /var/www/dentcontrol/storage
+sudo chmod -R 775 /var/www/dentcontrol/bootstrap/cache
+```
+
+```bash SELinux Enabled Systems
+sudo chcon -R -t httpd_sys_rw_content_t /var/www/dentcontrol/storage
+sudo chcon -R -t httpd_sys_rw_content_t /var/www/dentcontrol/bootstrap/cache
+```
+</CodeGroup>
+
+<Warning>
+  Never set permissions to 777! This is a security risk.
+</Warning>
+
+### 5. Optimize Laravel
+
+Run Laravel optimization commands for production:
+
+<Steps>
+  <Step title="Cache configuration">
+    Cache configuration files for faster loading:
+    
+    ```bash
+    php artisan config:cache
+    ```
+    
+    <Note>
+      After caching config, the `.env` file is no longer read. Clear cache to apply changes:
+      ```bash
+      php artisan config:clear
+      ```
+    </Note>
+  </Step>
+
+  <Step title="Cache routes">
+    Cache route definitions:
+    
+    ```bash
+    php artisan route:cache
+    ```
+    
+    This significantly speeds up route registration.
+  </Step>
+
+  <Step title="Cache views">
+    Precompile Blade templates:
+    
+    ```bash
+    php artisan view:cache
+    ```
+  </Step>
+
+  <Step title="Optimize autoloader">
+    Already done during composer install, but you can run separately:
+    
+    ```bash
+    composer dump-autoload --optimize
+    ```
+  </Step>
+</Steps>
+
+<CodeGroup>
+```bash All-in-One Optimization
+# Run all optimization commands
+php artisan optimize
+
+# This runs:
+# - config:cache
+# - route:cache  
+# - view:cache
+```
+
+```bash Clear All Caches
+# When you need to clear everything
+php artisan optimize:clear
+
+# This runs:
+# - config:clear
+# - route:clear
+# - view:clear
+# - cache:clear
+```
+</CodeGroup>
+
+## Web Server Configuration
+
+Configure your web server to serve DentControl.
+
+### Nginx Configuration
+
+Create an Nginx server block:
+
+```nginx /etc/nginx/sites-available/dentcontrol
+server {
+    listen 80;
+    listen [::]:80;
+    server_name your-domain.com www.your-domain.com;
+    
+    # Redirect to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name your-domain.com www.your-domain.com;
+    
+    root /var/www/dentcontrol/public;
+    index index.php index.html;
+    
+    # SSL Configuration
+    ssl_certificate /etc/ssl/certs/your-domain.crt;
+    ssl_certificate_key /etc/ssl/private/your-domain.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Logging
+    access_log /var/log/nginx/dentcontrol-access.log;
+    error_log /var/log/nginx/dentcontrol-error.log;
+    
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Laravel routing
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    # PHP-FPM configuration
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_hide_header X-Powered-By;
+    }
+    
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+    }
+    
+    # Cache static assets
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+Enable the site:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/dentcontrol /etc/nginx/sites-enabled/
+sudo nginx -t  # Test configuration
+sudo systemctl reload nginx
+```
+
+### Apache Configuration
+
+Create an Apache virtual host:
+
+```apache /etc/apache2/sites-available/dentcontrol.conf
+<VirtualHost *:80>
+    ServerName your-domain.com
+    ServerAlias www.your-domain.com
+    
+    # Redirect to HTTPS
+    Redirect permanent / https://your-domain.com/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName your-domain.com
+    ServerAlias www.your-domain.com
+    
+    DocumentRoot /var/www/dentcontrol/public
+    
+    <Directory /var/www/dentcontrol/public>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/your-domain.crt
+    SSLCertificateKeyFile /etc/ssl/private/your-domain.key
+    
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/dentcontrol-error.log
+    CustomLog ${APACHE_LOG_DIR}/dentcontrol-access.log combined
+    
+    # Security Headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+</VirtualHost>
+```
+
+Enable required modules and site:
+
+```bash
+sudo a2enmod rewrite ssl headers
+sudo a2ensite dentcontrol
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
+### SSL/TLS Certificate
+
+Obtain a free SSL certificate using Let's Encrypt:
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx  # For Nginx
+# OR
+sudo apt install certbot python3-certbot-apache  # For Apache
+
+# Obtain certificate
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+# OR
+sudo certbot --apache -d your-domain.com -d www.your-domain.com
+
+# Auto-renewal is configured automatically
+# Test renewal:
+sudo certbot renew --dry-run
+```
+
+## Queue Workers
+
+DentControl uses queues for background jobs. Set up queue workers to process them.
+
+### Supervisor Configuration
+
+Supervisor keeps queue workers running continuously.
+
+<Steps>
+  <Step title="Install Supervisor">
+    ```bash
+    sudo apt install supervisor
+    ```
+  </Step>
+
+  <Step title="Create worker configuration">
+    Create `/etc/supervisor/conf.d/dentcontrol-worker.conf`:
+    
+    ```ini
+    [program:dentcontrol-worker]
+    process_name=%(program_name)s_%(process_num)02d
+    command=php /var/www/dentcontrol/artisan queue:work database --sleep=3 --tries=3 --max-time=3600
+    autostart=true
+    autorestart=true
+    stopasgroup=true
+    killasgroup=true
+    user=www-data
+    numprocs=2
+    redirect_stderr=true
+    stdout_logfile=/var/www/dentcontrol/storage/logs/worker.log
+    stopwaitsecs=3600
+    ```
+  </Step>
+
+  <Step title="Start workers">
+    ```bash
+    sudo supervisorctl reread
+    sudo supervisorctl update
+    sudo supervisorctl start dentcontrol-worker:*
+    ```
+  </Step>
+
+  <Step title="Check worker status">
+    ```bash
+    sudo supervisorctl status dentcontrol-worker:*
+    ```
+  </Step>
+</Steps>
+
+### Managing Queue Workers
+
+<CodeGroup>
+```bash Supervisor Commands
+# View status
+sudo supervisorctl status
+
+# Start workers
+sudo supervisorctl start dentcontrol-worker:*
+
+# Stop workers
+sudo supervisorctl stop dentcontrol-worker:*
+
+# Restart workers
+sudo supervisorctl restart dentcontrol-worker:*
+
+# View logs
+sudo supervisorctl tail -f dentcontrol-worker:dentcontrol-worker_00 stdout
+```
+
+```bash Manual Queue Worker
+# For testing or temporary use
+php artisan queue:work --verbose --tries=3 --timeout=90
+
+# Run specific queue
+php artisan queue:work database --queue=high,default
+
+# Process one job and exit
+php artisan queue:work --once
+```
+</CodeGroup>
+
+<Warning>
+  After deploying code changes, restart queue workers:
+  
+  ```bash
+  php artisan queue:restart
+  # Or
+  sudo supervisorctl restart dentcontrol-worker:*
+  ```
+</Warning>
+
+## Composer Scripts
+
+DentControl includes helpful composer scripts (defined in `composer.json`):
+
+### Setup Script
+
+Quick setup for new installations:
+
+```bash
+composer run setup
+```
+
+This runs:
+1. `composer install`
+2. Creates `.env` from `.env.example` (if needed)
+3. `php artisan key:generate`
+4. `php artisan migrate --force`
+5. `npm install`
+6. `npm run build`
+
+### Development Script
+
+Start development environment:
+
+```bash
+composer run dev
+```
+
+This simultaneously runs:
+- Laravel development server (`php artisan serve`)
+- Queue worker (`php artisan queue:listen`)
+- Log viewer (`php artisan pail`)
+- Vite dev server (`npm run dev`)
+
+<Note>
+  The `dev` script is for local development only, not production.
+</Note>
+
+### Test Script
+
+Run application tests:
+
+```bash
+composer run test
+```
+
+Runs:
+1. `php artisan config:clear`
+2. `php artisan test`
+
+## Scheduled Tasks (Cron)
+
+Laravel's scheduler manages periodic tasks. Add to crontab:
+
+```bash
+crontab -e
+```
+
+Add this line:
+
+```cron
+* * * * * cd /var/www/dentcontrol && php artisan schedule:run >> /dev/null 2>&1
+```
+
+This runs Laravel's scheduler every minute, which then runs scheduled tasks at their defined intervals.
+
+## Monitoring and Logging
+
+### Log Files
+
+Laravel logs are in `storage/logs/`:
+
+```bash
+# View latest log entries
+tail -f storage/logs/laravel.log
+
+# Search for errors
+grep ERROR storage/logs/laravel.log
+
+# View worker logs (if using Supervisor)
+tail -f storage/logs/worker.log
+```
+
+### Log Rotation
+
+Configure log rotation to prevent large log files:
+
+Create `/etc/logrotate.d/dentcontrol`:
+
+```logrotate
+/var/www/dentcontrol/storage/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0644 www-data www-data
+    sharedscripts
+}
+```
+
+### Health Monitoring
+
+Monitor application health:
+
+```bash
+# Check database connection
+php artisan db:monitor
+
+# View application info
+php artisan about
+
+# Check queue status
+php artisan queue:monitor database --max=100
+```
+
+## Deployment Checklist
+
+<Steps>
+  <Step title="Pre-deployment">
+    - [ ] Backup production database
+    - [ ] Test on staging environment
+    - [ ] Review code changes
+    - [ ] Check `.env` configuration
+  </Step>
+
+  <Step title="Deployment">
+    - [ ] Put application in maintenance mode:
+      ```bash
+      php artisan down
+      ```
+    - [ ] Pull latest code: `git pull origin main`
+    - [ ] Install dependencies: `composer install --optimize-autoloader --no-dev`
+    - [ ] Run migrations: `php artisan migrate --force`
+    - [ ] Build assets: `npm run build`
+    - [ ] Clear caches: `php artisan optimize:clear`
+    - [ ] Optimize: `php artisan optimize`
+    - [ ] Restart queue workers: `php artisan queue:restart`
+    - [ ] Bring application back up:
+      ```bash
+      php artisan up
+      ```
+  </Step>
+
+  <Step title="Post-deployment">
+    - [ ] Test critical functionality
+    - [ ] Check logs for errors
+    - [ ] Verify queue workers running
+    - [ ] Monitor performance
+  </Step>
+</Steps>
+
+## Automated Deployment
+
+Create a deployment script for consistent deployments:
+
+```bash deploy.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting deployment..."
+
+# Put app in maintenance mode
+php artisan down
+
+# Pull latest changes
+echo "📥 Pulling latest code..."
+git pull origin main
+
+# Install/update dependencies
+echo "📦 Installing dependencies..."
+composer install --optimize-autoloader --no-dev
+npm install
+
+# Build assets
+echo "🔨 Building assets..."
+npm run build
+
+# Run migrations
+echo "🗄️ Running migrations..."
+php artisan migrate --force
+
+# Clear and optimize
+echo "⚡ Optimizing..."
+php artisan optimize:clear
+php artisan optimize
+
+# Restart queue workers
+echo "♻️ Restarting workers..."
+php artisan queue:restart
+
+# Bring app back up
+php artisan up
+
+echo "✅ Deployment complete!"
+```
+
+Make it executable:
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+## Troubleshooting
+
+<Accordion title="500 Internal Server Error">
+  Common causes:
+  
+  1. **Permissions issue**:
+     ```bash
+     sudo chown -R www-data:www-data storage bootstrap/cache
+     sudo chmod -R 775 storage bootstrap/cache
+     ```
+  
+  2. **Missing .env file**:
+     ```bash
+     cp .env.example .env
+     php artisan key:generate
+     ```
+  
+  3. **Check error logs**:
+     ```bash
+     tail -f storage/logs/laravel.log
+     tail -f /var/log/nginx/dentcontrol-error.log
+     ```
+</Accordion>
+
+<Accordion title="Queue jobs not processing">
+  1. **Check workers are running**:
+     ```bash
+     sudo supervisorctl status
+     ```
+  
+  2. **View worker logs**:
+     ```bash
+     tail -f storage/logs/worker.log
+     ```
+  
+  3. **Manually test queue**:
+     ```bash
+     php artisan queue:work --once --verbose
+     ```
+  
+  4. **Restart workers**:
+     ```bash
+     sudo supervisorctl restart dentcontrol-worker:*
+     ```
+</Accordion>
+
+<Accordion title="Assets not loading">
+  1. **Rebuild assets**:
+     ```bash
+     npm run build
+     ```
+  
+  2. **Check public/build/ directory exists**
+  
+  3. **Clear view cache**:
+     ```bash
+     php artisan view:clear
+     ```
+  
+  4. **Check web server can access public/ directory**
+</Accordion>
+
+<Accordion title="Database connection fails">
+  1. **Verify credentials in .env**
+  
+  2. **Test database connection**:
+     ```bash
+     php artisan db:show
+     ```
+  
+  3. **Check database server is running**:
+     ```bash
+     sudo systemctl status mysql
+     ```
+  
+  4. **Clear config cache**:
+     ```bash
+     php artisan config:clear
+     ```
+</Accordion>
+
+<Accordion title="Config changes not taking effect">
+  When config is cached, `.env` changes aren't read.
+  
+  ```bash
+  # Clear config cache
+  php artisan config:clear
+  
+  # Re-cache if in production
+  php artisan config:cache
+  ```
+</Accordion>
+
+## Security Best Practices
+
+1. **Always use HTTPS** with valid SSL certificate
+2. **Set APP_DEBUG=false** in production
+3. **Use strong database passwords**
+4. **Keep Laravel and dependencies updated**:
+   ```bash
+   composer update
+   ```
+5. **Protect .env file**:
+   ```bash
+   chmod 600 .env
+   ```
+6. **Disable directory listing** in web server config
+7. **Use prepared statements** (Laravel does this by default)
+8. **Implement rate limiting** for API endpoints
+9. **Regular security audits**:
+   ```bash
+   composer audit
+   ```
+10. **Backup regularly** (database and uploaded files)
+
+## Performance Optimization
+
+1. **Enable OPcache** in PHP configuration
+2. **Use Redis** for cache and sessions (instead of database)
+3. **Enable Gzip compression** in web server
+4. **Optimize database** with indexes
+5. **Use CDN** for static assets
+6. **Enable HTTP/2** in web server
+7. **Implement caching** strategies in code
+8. **Monitor slow queries**:
+   ```bash
+   php artisan db:monitor --max=1000
+   ```
+
+## Backup Strategy
+
+Automate backups with a cron job:
+
+```bash backup.sh
+#!/bin/bash
+BACKUP_DIR="/var/backups/dentcontrol"
+DATE=$(date +%Y%m%d-%H%M%S)
+
+# Create backup directory
+mkdir -p $BACKUP_DIR
+
+# Backup database
+mysqldump -u dentcontrol -p'password' dentcontrol | gzip > $BACKUP_DIR/db-$DATE.sql.gz
+
+# Backup uploaded files
+tar -czf $BACKUP_DIR/storage-$DATE.tar.gz /var/www/dentcontrol/storage/app
+
+# Keep only last 30 days
+find $BACKUP_DIR -type f -mtime +30 -delete
+
+echo "Backup completed: $DATE"
+```
+
+Add to crontab:
+
+```cron
+0 2 * * * /var/www/dentcontrol/backup.sh >> /var/log/dentcontrol-backup.log 2>&1
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Fine-tune production configuration
+  </Card>
+  
+  <Card title="User Management" icon="users" href="/guides/user-management">
+    Set up users and roles
+  </Card>
+  
+  <Card title="Database Setup" icon="database" href="/guides/database-setup">
+    Optimize database for production
+  </Card>
+</CardGroup>

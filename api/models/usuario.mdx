@@ -1,0 +1,223 @@
+---
+title: "Usuario Model"
+description: "User authentication and authorization model for dental professionals"
+---
+
+## Overview
+
+The `Usuario` model extends Laravel's `Authenticatable` class and represents authenticated users in the DentControl system. This includes dentists, assistants, and superadmins who manage clinic operations.
+
+## Table Schema
+
+<ParamField path="table" type="string" default="usuario">
+  Database table name
+</ParamField>
+
+<ParamField path="primaryKey" type="integer" default="id_usuario">
+  Primary key column (auto-incrementing)
+</ParamField>
+
+<ParamField path="timestamps" type="boolean" default="true">
+  Includes `created_at` and `updated_at` columns
+</ParamField>
+
+## Fields
+
+### Clinic Association
+
+<ParamField path="id_clinica" type="integer" required>
+  Foreign key to the clinic this user belongs to
+</ParamField>
+
+### Personal Information
+
+<ParamField path="nombre" type="string" required>
+  First name
+</ParamField>
+
+<ParamField path="apellido_paterno" type="string" required>
+  Paternal surname
+</ParamField>
+
+<ParamField path="apellido_materno" type="string">
+  Maternal surname (optional)
+</ParamField>
+
+### Professional Information
+
+<ParamField path="cedula_profesional" type="string">
+  Professional license number. Unique and nullable.
+</ParamField>
+
+### Authentication
+
+<ParamField path="nom_usuario" type="string" required>
+  Username for login. Must be unique.
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Hashed password. Automatically hashed by Laravel.
+</ParamField>
+
+### Authorization
+
+<ParamField path="rol" type="enum" required>
+  User role: `superadmin`, `dentista`, or `asistente`
+</ParamField>
+
+### Status
+
+<ParamField path="estatus" type="enum" default="activo">
+  User status: `activo` or `baja`
+</ParamField>
+
+## Hidden Fields
+
+The following fields are automatically hidden from JSON responses:
+
+- `password`
+- `remember_token`
+
+## Casts
+
+<ParamField path="password" type="hashed">
+  Automatically hashed when saved to database
+</ParamField>
+
+## Relationships
+
+### clinica
+
+**Type:** `belongsTo`
+
+A user belongs to one clinic.
+
+```php
+$usuario->clinica; // Clinica model instance
+```
+
+**Foreign Key:** `id_clinica`
+
+### citas
+
+**Type:** `hasMany`
+
+A user (dentist) has many appointments.
+
+```php
+$usuario->citas; // Collection of Cita models
+```
+
+**Foreign Key:** `id_usuario` on `citas` table
+
+### notasEvolucion
+
+**Type:** `hasMany`
+
+A user can create many progress notes.
+
+```php
+$usuario->notasEvolucion; // Collection of NotasEvolucion models
+```
+
+**Foreign Key:** `id_usuario` on `notas_evolucion` table
+
+## Example Usage
+
+### Creating a New User
+
+```php
+use App\Models\Usuario;
+
+$usuario = Usuario::create([
+    'id_clinica' => 1,
+    'nombre' => 'Juan',
+    'apellido_paterno' => 'García',
+    'apellido_materno' => 'López',
+    'cedula_profesional' => '12345678',
+    'nom_usuario' => 'jgarcia',
+    'password' => 'securePassword123', // Will be auto-hashed
+    'rol' => 'dentista',
+    'estatus' => 'activo'
+]);
+```
+
+### Authentication
+
+```php
+use Illuminate\Support\Facades\Auth;
+
+// Attempt login
+$credentials = [
+    'nom_usuario' => 'jgarcia',
+    'password' => 'securePassword123'
+];
+
+if (Auth::attempt($credentials)) {
+    $usuario = Auth::user();
+    // User is authenticated
+}
+```
+
+### Retrieving User with Relationships
+
+```php
+// Get user with clinic and appointments
+$usuario = Usuario::with(['clinica', 'citas'])
+    ->find($id);
+
+// Get user with upcoming appointments
+$usuario = Usuario::with(['citas' => function ($query) {
+    $query->where('fecha', '>=', now())
+          ->orderBy('fecha', 'asc');
+}])->find($id);
+```
+
+### Filtering by Role
+
+```php
+// Get all dentists in a clinic
+$dentistas = Usuario::where('id_clinica', $clinicaId)
+    ->where('rol', 'dentista')
+    ->where('estatus', 'activo')
+    ->get();
+```
+
+## Authentication Methods
+
+The model overrides default authentication methods:
+
+```php
+// Returns the password field
+public function getAuthPassword()
+
+// Returns the custom identifier name
+public function getAuthIdentifierName() // Returns 'id_usuario'
+```
+
+## Model Definition
+
+Location: `app/Models/Usuario.php`
+
+```php
+protected $fillable = [
+    'id_clinica',
+    'nombre',
+    'apellido_paterno',
+    'apellido_materno',
+    'cedula_profesional',
+    'nom_usuario',
+    'password',
+    'rol',
+    'estatus'
+];
+
+protected $hidden = [
+    'password',
+    'remember_token',
+];
+
+protected $casts = [
+    'password' => 'hashed',
+];
+```

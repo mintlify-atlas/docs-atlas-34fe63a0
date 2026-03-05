@@ -1,0 +1,222 @@
+---
+title: "AuthController"
+description: "Handles user authentication, login, logout, and role-based redirects"
+---
+
+## Overview
+
+The `AuthController` manages all authentication operations for the DentControl application. It handles user login with credential validation, status checks for both users and their associated clinics, session management with "remember me" functionality, and role-based dashboard redirects. It also provides logout functionality with proper session cleanup.
+
+**Location:** `app/Http/Controllers/AuthController.php`
+
+---
+
+## Methods
+
+### showLogin()
+
+Displays the login form view.
+
+**Route:** `GET /`
+
+**Route Name:** `login`
+
+**Middleware:** None (public route)
+
+**Response:**
+
+Returns the `auth.login` Blade view.
+
+**Example:**
+```php
+public function showLogin()
+{
+    return view('auth.login');
+}
+```
+
+---
+
+### login()
+
+Authenticates a user and redirects based on their role. Includes validation of user credentials, user status, and clinic status.
+
+**Route:** `POST /login`
+
+**Route Name:** `login.post`
+
+**Middleware:** None (public route)
+
+**Parameters:**
+
+<ParamField body="nom_usuario" type="string" required>
+  Username for authentication
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User password
+</ParamField>
+
+<ParamField body="remember" type="boolean" optional>
+  Whether to remember the user session (checkbox)
+</ParamField>
+
+**Validation Rules:**
+- `nom_usuario`: required, string
+- `password`: required, string
+
+**Response:**
+
+**Success (302 Redirect):**
+- Regenerates session
+- Redirects based on user role:
+  - `superadmin` → `/admin/dashboard`
+  - `dentista` → `/dentista/dashboard`
+  - `asistente` → `/asistente/dashboard`
+  - Default → `/dashboard`
+
+**Failure (302 Redirect Back):**
+Returns to login with error messages for:
+- Invalid credentials
+- Inactive user account (`estatus !== 'activo'`)
+- Inactive associated clinic (`clinica->estatus === 'baja'`)
+
+**Error Messages:**
+- `"El nombre de usuario o la contraseña no son correctos."` - Invalid credentials
+- `"Tu cuenta está suspendida o inactiva. Contacta al administrador."` - User status is not active
+- `"La clínica asociada a esta cuenta ha sido dada de baja."` - Associated clinic is inactive
+
+**Example:**
+```php
+public function login(Request $request)
+{
+    $credentials = $request->validate([
+        'nom_usuario' => 'required|string',
+        'password' => 'required|string',
+    ]);
+
+    $remember = $request->has('remember');
+
+    if (Auth::attempt($credentials, $remember)) {
+        $user = Auth::user();
+
+        // Verify user status
+        if ($user->estatus !== 'activo') {
+            Auth::logout();
+            return back()->withErrors([
+                'nom_usuario' => 'Tu cuenta está suspendida o inactiva. Contacta al administrador.',
+            ]);
+        }
+        
+        // Verify clinic status (if user has associated clinic)
+        if ($user->id_clinica && $user->clinica->estatus === 'baja') {
+            Auth::logout();
+            return back()->withErrors([
+                'nom_usuario' => 'La clínica asociada a esta cuenta ha sido dada de baja.',
+            ]);
+        }   
+
+        $request->session()->regenerate();
+
+        return $this->redirectByUserRole($user);
+    }
+
+    return back()->withErrors([
+        'nom_usuario' => 'El nombre de usuario o la contraseña no son correctos.',
+    ])->onlyInput('nom_usuario');
+}
+```
+
+**Security Features:**
+- Session regeneration on successful login
+- Automatic logout if user or clinic is inactive
+- Remember me functionality
+- Only username field preserved on error (password is not retained)
+
+---
+
+### redirectByUserRole() *(protected)*
+
+Auxiliary method that determines the dashboard redirect based on user role.
+
+**Parameters:**
+- `$user` - Authenticated user model instance
+
+**Returns:**
+- Redirect response to role-specific dashboard
+
+**Role Mapping:**
+- `superadmin` → `admin.dashboard`
+- `dentista` → `dentista.dashboard`
+- `asistente` → `asistente.dashboard`
+- Default → `dashboard` (intended route)
+
+**Example:**
+```php
+protected function redirectByUserRole($user)
+{
+    switch ($user->rol) {
+        case 'superadmin':
+            return redirect()->route('admin.dashboard');
+        case 'dentista':
+            return redirect()->route('dentista.dashboard');
+        case 'asistente':
+            return redirect()->route('asistente.dashboard');
+        default:
+            return redirect()->intended('dashboard');
+    }
+}
+```
+
+---
+
+### logout()
+
+Logs out the current user and invalidates the session.
+
+**Route:** `POST /logout`
+
+**Route Name:** `logout`
+
+**Middleware:** Implicit (user must be authenticated)
+
+**Response:**
+
+Redirects to login page with:
+- Session invalidated
+- Session token regenerated
+- User logged out
+
+**Example:**
+```php
+public function logout(Request $request)
+{
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+    return redirect()->route('login');
+}
+```
+
+**Security Features:**
+- Session invalidation
+- CSRF token regeneration
+- Complete logout cleanup
+
+---
+
+## Summary
+
+The `AuthController` provides **4 methods** (3 public, 1 protected) for comprehensive authentication management:
+
+1. **showLogin()** - Display login form
+2. **login()** - Authenticate with multi-level validation
+3. **redirectByUserRole()** - Role-based routing logic
+4. **logout()** - Secure session termination
+
+**Key Features:**
+- Multi-role authentication (superadmin, dentista, asistente)
+- User and clinic status validation
+- Remember me functionality
+- Secure session management
+- Role-based dashboard routing

@@ -1,0 +1,256 @@
+---
+title: "Paciente Model"
+description: "Patient demographic and contact information model"
+---
+
+## Overview
+
+The `Paciente` model represents patient records in the DentControl system. It stores comprehensive demographic information, contact details, and address data for patients registered at dental clinics.
+
+## Table Schema
+
+<ParamField path="table" type="string" default="paciente">
+  Database table name
+</ParamField>
+
+<ParamField path="primaryKey" type="integer" default="id_paciente">
+  Primary key column (auto-incrementing)
+</ParamField>
+
+<ParamField path="timestamps" type="boolean" default="true">
+  Includes `created_at` and `updated_at` columns
+</ParamField>
+
+## Fields
+
+### Clinic Association
+
+<ParamField path="id_clinica" type="integer" required>
+  Foreign key to the clinic this patient is registered at
+</ParamField>
+
+### Personal Information
+
+<ParamField path="nombre" type="string" required>
+  First name
+</ParamField>
+
+<ParamField path="apellido_paterno" type="string" required>
+  Paternal surname
+</ParamField>
+
+<ParamField path="apellido_materno" type="string">
+  Maternal surname (optional)
+</ParamField>
+
+<ParamField path="fecha_nacimiento" type="date">
+  Date of birth (format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="sexo" type="enum">
+  Biological sex: `hombre` or `mujer`
+</ParamField>
+
+### Identification & Contact
+
+<ParamField path="curp" type="string">
+  CURP (Clave Única de Registro de Población) - Mexican national ID. Unique and nullable.
+</ParamField>
+
+<ParamField path="telefono" type="string">
+  Primary contact phone number
+</ParamField>
+
+### Additional Information
+
+<ParamField path="ocupacion" type="string">
+  Occupation/profession
+</ParamField>
+
+<ParamField path="peso" type="decimal">
+  Weight in kilograms (precision: 5 digits, 2 decimals)
+</ParamField>
+
+### Address Fields
+
+<ParamField path="calle" type="string">
+  Street name
+</ParamField>
+
+<ParamField path="num_ext" type="string">
+  External street number
+</ParamField>
+
+<ParamField path="num_int" type="string">
+  Internal/apartment number
+</ParamField>
+
+<ParamField path="colonia" type="string">
+  Neighborhood/colony
+</ParamField>
+
+<ParamField path="ciudad" type="string">
+  City
+</ParamField>
+
+<ParamField path="estado" type="string">
+  State/province
+</ParamField>
+
+<ParamField path="codigo_postal" type="string">
+  Postal/ZIP code
+</ParamField>
+
+### Status
+
+<ParamField path="estatus" type="enum" default="activo">
+  Patient status: `activo` or `baja`
+</ParamField>
+
+## Relationships
+
+### clinica
+
+**Type:** `belongsTo`
+
+A patient belongs to one clinic.
+
+```php
+$paciente->clinica; // Clinica model instance
+```
+
+**Foreign Key:** `id_clinica`
+
+### citas
+
+**Type:** `hasMany`
+
+A patient has many appointments.
+
+```php
+$paciente->citas; // Collection of Cita models
+```
+
+**Foreign Key:** `id_paciente` on `citas` table
+
+### expediente
+
+**Type:** `hasOne`
+
+A patient has one clinical record.
+
+```php
+$paciente->expediente; // ExpedienteClinico model instance
+```
+
+**Foreign Key:** `id_paciente` on `expediente_clinico` table
+
+### accesoMovil
+
+**Type:** `hasOne`
+
+A patient may have mobile app access.
+
+```php
+$paciente->accesoMovil; // AccesoMovil model instance
+```
+
+**Foreign Key:** `id_paciente` on `acceso_movil` table
+
+## Example Usage
+
+### Creating a New Patient
+
+```php
+use App\Models\Paciente;
+
+$paciente = Paciente::create([
+    'id_clinica' => 1,
+    'nombre' => 'María',
+    'apellido_paterno' => 'González',
+    'apellido_materno' => 'Hernández',
+    'fecha_nacimiento' => '1985-06-15',
+    'sexo' => 'mujer',
+    'telefono' => '5555551234',
+    'curp' => 'GOHM850615MDFLRR01',
+    'ocupacion' => 'Ingeniera',
+    'peso' => 65.50,
+    'calle' => 'Insurgentes Sur',
+    'num_ext' => '456',
+    'colonia' => 'Del Valle',
+    'ciudad' => 'Ciudad de México',
+    'estado' => 'CDMX',
+    'codigo_postal' => '03100',
+    'estatus' => 'activo'
+]);
+```
+
+### Retrieving Patient with Relationships
+
+```php
+// Get patient with all appointments
+$paciente = Paciente::with('citas')->find($id);
+
+// Get patient with clinic and clinical record
+$paciente = Paciente::with(['clinica', 'expediente'])
+    ->find($id);
+
+// Get patient with upcoming appointments
+$paciente = Paciente::with(['citas' => function ($query) {
+    $query->where('fecha', '>=', now())
+          ->orderBy('fecha', 'asc');
+}])->find($id);
+```
+
+### Searching Patients
+
+```php
+// Search by name
+$pacientes = Paciente::where('id_clinica', $clinicaId)
+    ->where(function ($query) use ($searchTerm) {
+        $query->where('nombre', 'like', "%{$searchTerm}%")
+              ->orWhere('apellido_paterno', 'like', "%{$searchTerm}%")
+              ->orWhere('apellido_materno', 'like', "%{$searchTerm}%");
+    })
+    ->where('estatus', 'activo')
+    ->get();
+
+// Find by CURP
+$paciente = Paciente::where('curp', $curp)->first();
+```
+
+### Calculating Age
+
+```php
+use Carbon\Carbon;
+
+$paciente = Paciente::find($id);
+$edad = Carbon::parse($paciente->fecha_nacimiento)->age;
+```
+
+## Model Definition
+
+Location: `app/Models/Paciente.php`
+
+```php
+protected $fillable = [
+    'id_clinica',
+    'nombre',
+    'apellido_paterno',
+    'apellido_materno',
+    'fecha_nacimiento',
+    'sexo',
+    'telefono',
+    'curp',
+    'ocupacion',
+    'peso',
+    'calle',
+    'num_ext',
+    'num_int',
+    'colonia',
+    'ciudad',
+    'estado',
+    'codigo_postal',
+    'estatus'
+];
+```

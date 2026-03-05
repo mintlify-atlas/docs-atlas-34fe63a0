@@ -1,0 +1,137 @@
+---
+title: Introduction to DentControl
+description: A comprehensive dental clinic management SaaS application built with Laravel 12
+---
+
+## What is DentControl?
+
+DentControl is a modern, multi-tenant dental clinic management system designed to streamline operations for dental practices. Built with Laravel 12 and PHP 8.2, it provides a complete solution for managing clinics, patients, appointments, treatments, and clinical records.
+
+<Note>
+DentControl uses a **multi-tenant architecture** where each clinic operates independently with its own data, users, and patients, while being managed from a centralized super admin panel.
+</Note>
+
+## Key Features
+
+DentControl offers a comprehensive suite of features for dental practice management:
+
+### Multi-Tenant Clinic Management
+- **Clinic Registration**: Complete clinic profiles with business details (RFC, address, contact information)
+- **Logo & Branding**: Upload custom logos for each clinic
+- **Status Control**: Enable or disable clinic access as needed
+- **Centralized Administration**: Super admin dashboard for managing all clinics
+
+### Patient Management
+- **Complete Patient Records**: Store detailed patient information including personal data, contact details, and medical history
+- **Clinical Files**: Comprehensive clinical record system (expediente clínico)
+- **Patient Demographics**: Track age, gender, occupation, weight, and other relevant data
+- **Address Management**: Complete address information for patient records
+- **Mobile Access**: Patients can access their information through mobile authentication
+
+### Appointment System
+- **Appointment Scheduling**: Full-featured calendar for managing patient appointments
+- **Multi-User Support**: Dentists and assistants can manage schedules
+- **Status Tracking**: Monitor appointment confirmations and completion
+
+### Treatment Management
+- **Treatment Catalog**: Pre-defined service and treatment catalogs
+- **Treatment Planning**: Create and track treatment plans for patients
+- **Evolution Notes**: Record progress notes for ongoing treatments
+- **Cost Tracking**: Manage treatment costs and pricing
+
+### Role-Based Access Control
+
+DentControl implements a sophisticated role system with three main user types:
+
+<CodeGroup>
+```php Super Admin
+// Full system access
+- Manage all clinics
+- Create and manage users
+- View system-wide analytics
+- Control clinic status
+```
+
+```php Dentista (Dentist)
+// Clinic-level management
+- Manage patients
+- View and create appointments
+- Manage treatments
+- Access clinical records
+```
+
+```php Asistente (Assistant)
+// Reception and scheduling
+- Manage appointment calendar
+- Register patients
+- Handle reception tasks
+```
+</CodeGroup>
+
+## Technology Stack
+
+DentControl is built with modern web technologies:
+
+- **Framework**: Laravel 12.x
+- **PHP**: 8.2+
+- **Frontend**: Blade templates with Tailwind CSS 4.0
+- **JavaScript**: Vite build system, Axios for HTTP requests
+- **Database**: SQLite (default) with support for MySQL/PostgreSQL
+- **Queue System**: Database-driven background job processing
+- **Session Management**: Database-backed sessions for multi-tenant support
+
+<Info>
+The application uses **Laravel's built-in features** including:
+- Eloquent ORM for database operations
+- Migration system for database version control
+- Authorization policies for role-based access
+- Queue workers for background tasks
+</Info>
+
+## Architecture Overview
+
+### Multi-Tenant Design
+
+DentControl implements tenant isolation at the data level:
+
+1. **Clinic Separation**: Each clinic has a unique `id_clinica` identifier
+2. **Data Isolation**: All patients, users, and appointments are scoped to their clinic
+3. **User Association**: Users are assigned to specific clinics with role-based permissions
+4. **Shared Resources**: Service and treatment catalogs can be shared across clinics
+
+### Database Structure
+
+The system uses a normalized database schema with the following core tables:
+
+- `clinica` - Clinic information and settings
+- `usuario` - User accounts with role and clinic associations
+- `paciente` - Patient records linked to clinics
+- `citas` - Appointment scheduling
+- `expediente_clinico` - Clinical records
+- `tratamiento` - Treatment plans and records
+- `notas_evolucion` - Treatment progress notes
+- `catalogo_servicios` - Service catalog
+- `catalogo_tratamientos` - Treatment catalog
+- `acceso_movil` - Patient mobile access credentials
+
+## Use Cases
+
+DentControl is ideal for:
+
+- **Single Dental Clinics**: Manage one practice with multiple dentists and staff
+- **Multi-Clinic Operations**: Manage multiple clinic locations from one platform
+- **Dental Practice Groups**: Provide SaaS access to independent dental practices
+- **Educational Institutions**: Manage dental school clinics and student practices
+
+## Next Steps
+
+Ready to get started? Check out these resources:
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Get DentControl running in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation instructions
+  </Card>
+</CardGroup>
